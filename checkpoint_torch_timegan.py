@@ -32,12 +32,20 @@ def load_checkpoint(filename='checkpoint.pth'):
 
     # Load the checkpoint if it exists
     if os.path.exists(checkpoint_path):
-        checkpoint = torch.load(checkpoint_path)
+        if torch.cuda.is_available():
+            checkpoint = torch.load(checkpoint_path)
+        else:
+            checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
         print(f"Checkpoint loaded from {checkpoint_path}")
         return checkpoint
-    else:
-        print(f"No checkpoint found at {checkpoint_path}")
-        return None
+
+    # if os.path.exists(checkpoint_path):
+    #     checkpoint = torch.load(checkpoint_path)
+    #     print(f"Checkpoint loaded from {checkpoint_path}")
+    #     return checkpoint
+    # else:
+    #     print(f"No checkpoint found at {checkpoint_path}")
+    #     return None
 
 # def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
 #     checkpoint = {
