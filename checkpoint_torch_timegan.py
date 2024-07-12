@@ -26,18 +26,65 @@ def MinMaxScaler(data):
     return norm_data, min_val, max_val
 
 def load_checkpoint(filename='checkpoint.pth'):
-    checkpoint = torch.load(filename)
-    return checkpoint
+    # Define the relative path to the Checkpoints directory within the script's directory
+    script_dir = os.path.dirname(__file__)
+    checkpoint_path = os.path.join(script_dir, 'Checkpoints', filename)
+
+    # Load the checkpoint if it exists
+    if os.path.exists(checkpoint_path):
+        checkpoint = torch.load(checkpoint_path)
+        print(f"Checkpoint loaded from {checkpoint_path}")
+        return checkpoint
+    else:
+        print(f"No checkpoint found at {checkpoint_path}")
+        return None
+
+# def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
+#     checkpoint = {
+#         'epoch': epoch,
+#         'model_state_dict': {k: v.state_dict() for k, v in model_dict.items()},
+#         'optimizer_state_dict': {k: v.state_dict() for k, v in optimizer_dict.items()},
+#         'losses': losses
+#     }
+#     torch.save(checkpoint, filename)
+#     print(f"Checkpoint saved at epoch {epoch}")
 
 def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
+    # Create the Checkpoints directory if it does not exist
+    #checkpoint_dir = os.path.join(os.getcwd(), 'Checkpoints')
+    checkpoint_dir = os.path.join(os.path.dirname(__file__), 'Checkpoints')
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+    
+    # Create the full checkpoint file path
+    checkpoint_path = os.path.join(checkpoint_dir, filename)
+    
     checkpoint = {
         'epoch': epoch,
         'model_state_dict': {k: v.state_dict() for k, v in model_dict.items()},
         'optimizer_state_dict': {k: v.state_dict() for k, v in optimizer_dict.items()},
         'losses': losses
     }
-    torch.save(checkpoint, filename)
-    print(f"Checkpoint saved at epoch {epoch}")
+    torch.save(checkpoint, checkpoint_path)
+    print(f"Checkpoint saved at epoch {epoch} to {checkpoint_path}")
+
+# def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
+#     # Define the relative path to the Checkpoints directory within the MMSC_Thesis folder
+#     checkpoint_dir = os.path.join(os.path.dirname(__file__), 'MMSC_Thesis', 'Checkpoints')
+#     if not os.path.exists(checkpoint_dir):
+#         os.makedirs(checkpoint_dir)
+    
+#     # Create the full checkpoint file path
+#     checkpoint_path = os.path.join(checkpoint_dir, filename)
+    
+#     checkpoint = {
+#         'epoch': epoch,
+#         'model_state_dict': {k: v.state_dict() for k, v in model_dict.items()},
+#         'optimizer_state_dict': {k: v.state_dict() for k, v in optimizer_dict.items()},
+#         'losses': losses
+#     }
+#     torch.save(checkpoint, checkpoint_path)
+#     print(f"Checkpoint saved at epoch {epoch} to {checkpoint_path}")
 
 def get_device(gpu_index=0):
     if torch.cuda.is_available():
@@ -164,8 +211,9 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
     
     # Load checkpoint if one exists
     start_epoch = {'embedding': 0, 'supervisor': 0, 'joint': 0}
-    if checkpoint_file and os.path.exists(checkpoint_file):
-        checkpoint = load_checkpoint(checkpoint_file)
+    checkpoint = load_checkpoint(checkpoint_file)
+    if checkpoint:
+        #if checkpoint_file and os.path.exists(checkpoint_file):
         start_epoch = checkpoint['epoch']
         embedder.load_state_dict(checkpoint['model_state_dict']['embedder'])
         recovery.load_state_dict(checkpoint['model_state_dict']['recovery'])
@@ -299,11 +347,6 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
                 G_loss.backward()
                 generator_optimizer.step()
 
-                #Step Embedder
-                #E_loss_T0 = nn.functional.mse_loss(X_hat, X_mb)
-                #E_loss_T0.backward(retain_graph=True)
-                #E_loss_T0.step()
-                #er_optimizer.step()
             
                 # Embedder training loop
             for X_mb, T_mb in dataloader:
@@ -324,20 +367,6 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
                 #E_loss.backward()
                 er_optimizer.step()
 
-            '''for X_mb, T_mb in dataloader:
-                X_mb, T_mb = X_mb.to(device), T_mb.to(device)
-                discriminator_optimizer.zero_grad()
-                Z_mb = random_generator(batch_size, z_dim, T_mb, max_seq_len)
-                Z_mb = torch.tensor(Z_mb, dtype=torch.float32).to(device)
-                H_hat = generator(Z_mb)
-                H_hat_supervise = supervisor(H_hat)
-                Y_fake = discriminator(H_hat_supervise)
-                Y_real = discriminator(embedder(X_mb))
-                D_loss_real = nn.functional.binary_cross_entropy_with_logits(Y_real, torch.ones_like(Y_real))
-                D_loss_fake = nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.zeros_like(Y_fake))
-                D_loss = D_loss_real + D_loss_fake
-                D_loss.backward()
-                discriminator_optimizer.step()'''
         
         for X_mb, T_mb in dataloader:
             X_mb, T_mb = X_mb.to(device), T_mb.to(device)
@@ -346,37 +375,35 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
             Z_mb = torch.tensor(Z_mb, dtype=torch.float32).to(device)
             H_hat = generator(Z_mb)
             H_hat_supervise = supervisor(H_hat)
+
+            #Insert Noise into discrim
             Y_fake = discriminator(H_hat_supervise)
             Y_fake_gen = discriminator(H_hat)
             Y_real = discriminator(embedder(X_mb))
-            D_loss_real = nn.functional.binary_cross_entropy_with_logits(Y_real, torch.ones_like(Y_real))
+
+            #add noise for discrim loss inputs (testing)
+            noise_real = torch.normal(mean=0, std=0.1, size=Y_real.size()).to(device)
+            noise_fake = torch.normal(mean=0, std=0.1, size=Y_fake.size()).to(device)
+            noisyY_real = Y_real + noise_real
+            noisyY_fake = Y_fake + noise_fake
+            noisyY_fake_gen = Y_fake_gen + noise_fake
             
             #Again. one loss for raw outputs from gen, another for supervised outputs
-            D_loss_fake_gen = nn.functional.binary_cross_entropy_with_logits(Y_fake_gen, torch.zeros_like(Y_fake_gen))
-            D_loss_fake = nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.zeros_like(Y_fake))
+            #D_loss_real = nn.functional.binary_cross_entropy_with_logits(Y_real, torch.ones_like(Y_real))
+            #D_loss_fake_gen = nn.functional.binary_cross_entropy_with_logits(Y_fake_gen, torch.zeros_like(Y_fake_gen))
+            #D_loss_fake = nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.zeros_like(Y_fake))
+            
+            #testing with noise in loss for all discrim inputs
+            D_loss_real = nn.functional.binary_cross_entropy_with_logits(noisyY_real, torch.ones_like(Y_real))
+            D_loss_fake_gen = nn.functional.binary_cross_entropy_with_logits(noisyY_fake_gen, torch.zeros_like(Y_fake_gen))
+            D_loss_fake = nn.functional.binary_cross_entropy_with_logits(noisyY_fake, torch.zeros_like(Y_fake))
             D_loss = D_loss_real + D_loss_fake + gamma * D_loss_fake_gen
 
             if D_loss.item() > 0.15:
                 discriminator_optimizer.zero_grad()
                 D_loss.backward()
-                discriminator_optimizer.step()
-            
-            #D_loss.backward()
-            #discriminator_optimizer.step()    
+                discriminator_optimizer.step()    
 
-        '''for X_mb, T_mb in dataloader:       #training gen
-            X_mb, T_mb = X_mb.to(device), T_mb.to(device)
-            generator_optimizer.zero_grad()
-            Z_mb = random_generator(batch_size, z_dim, T_mb, max_seq_len)
-            Z_mb = torch.tensor(Z_mb, dtype=torch.float32).to(device)
-            H_hat = generator(Z_mb)
-            H_hat_supervise = supervisor(H_hat)
-            Y_fake = discriminator(H_hat_supervise)
-            G_loss_U = nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.ones_like(Y_fake))
-            G_loss_S = nn.functional.mse_loss(embedder(X_mb)[:, 1:, :], H_hat_supervise[:, :-1, :])
-            G_loss = G_loss_U + gamma * G_loss_S
-            G_loss.backward()
-            generator_optimizer.step()'''
         
         if itt % 10 == 0:
             print(f'step: {itt}/{iterations}, d_loss: {D_loss.item()}, g_loss_u: {G_loss_U.item()}, g_loss_s: {G_loss_S.item()}, g_loss_v: {G_loss_V.item()}')
@@ -410,19 +437,9 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
     
     print('Finish Joint Training')
     
-    '''# Synthetic data generation
-    Z_mb = random_generator(no, z_dim, ori_time, max_seq_len)
-    Z_mb = torch.tensor(Z_mb, dtype=torch.float32).to(device)
-    generated_data_curr = recovery(supervisor(generator(Z_mb)))
-    generated_data_curr = generated_data_curr.cpu().detach().numpy()
-    
-    generated_data = []
-    for i in range(no):
-        temp = generated_data_curr[i, :ori_time[i], :]
-        generated_data.append(temp)'''
-    
     # Generate random latent variables
     Z_mb = random_generator(no, z_dim, ori_time, max_seq_len)
+    #Z_mb = np.array(Z_mb)
     Z_mb = torch.tensor(Z_mb, dtype=torch.float32).to(device)
     
     # Generate synthetic data
@@ -438,6 +455,6 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
         generated_data.append(temp)
     
     # Renormalization
-    generated_data = [(data * max_val) + min_val for data in generated_data]
+    generated_data = np.array([(data * max_val) + min_val for data in generated_data])
     
     return generated_data, embedder, recovery, supervisor, discriminator, generator

@@ -43,10 +43,10 @@ def train_test_divide (data_x, data_x_hat, data_t, data_t_hat, train_rate = 0.8)
   train_idx = idx[:int(no*train_rate)]
   test_idx = idx[int(no*train_rate):]
     
-  train_x = [data_x[i] for i in train_idx]
-  test_x = [data_x[i] for i in test_idx]
-  train_t = [data_t[i] for i in train_idx]
-  test_t = [data_t[i] for i in test_idx]      
+  train_x = np.array([data_x[i] for i in train_idx])
+  test_x = np.array([data_x[i] for i in test_idx])
+  train_t = np.array([data_t[i] for i in train_idx])
+  test_t = np.array([data_t[i] for i in test_idx])      
     
   # Divide train/test index (synthetic data)
   no = len(data_x_hat)
@@ -54,10 +54,10 @@ def train_test_divide (data_x, data_x_hat, data_t, data_t_hat, train_rate = 0.8)
   train_idx = idx[:int(no*train_rate)]
   test_idx = idx[int(no*train_rate):]
   
-  train_x_hat = [data_x_hat[i] for i in train_idx]
-  test_x_hat = [data_x_hat[i] for i in test_idx]
-  train_t_hat = [data_t_hat[i] for i in train_idx]
-  test_t_hat = [data_t_hat[i] for i in test_idx]
+  train_x_hat = np.array([data_x_hat[i] for i in train_idx])
+  test_x_hat = np.array([data_x_hat[i] for i in test_idx])
+  train_t_hat = np.array([data_t_hat[i] for i in train_idx])
+  test_t_hat = np.array([data_t_hat[i] for i in test_idx])
   
   return train_x, train_x_hat, test_x, test_x_hat, train_t, train_t_hat, test_t, test_t_hat
 
@@ -138,7 +138,7 @@ def random_generator (batch_size, z_dim, T_mb, max_seq_len):
     temp_Z = np.random.uniform(0., 1, [T_mb[i], z_dim])
     temp[:T_mb[i],:] = temp_Z
     Z_mb.append(temp_Z)
-  return Z_mb
+  return np.array(Z_mb)
 
 
 def batch_generator(data, time, batch_size):
