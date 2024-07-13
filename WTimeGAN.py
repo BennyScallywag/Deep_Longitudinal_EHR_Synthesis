@@ -39,24 +39,6 @@ def load_checkpoint(filename='checkpoint.pth'):
         print(f"Checkpoint loaded from {checkpoint_path}")
         return checkpoint
 
-    # if os.path.exists(checkpoint_path):
-    #     checkpoint = torch.load(checkpoint_path)
-    #     print(f"Checkpoint loaded from {checkpoint_path}")
-    #     return checkpoint
-    # else:
-    #     print(f"No checkpoint found at {checkpoint_path}")
-    #     return None
-
-# def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
-#     checkpoint = {
-#         'epoch': epoch,
-#         'model_state_dict': {k: v.state_dict() for k, v in model_dict.items()},
-#         'optimizer_state_dict': {k: v.state_dict() for k, v in optimizer_dict.items()},
-#         'losses': losses
-#     }
-#     torch.save(checkpoint, filename)
-#     print(f"Checkpoint saved at epoch {epoch}")
-
 def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
     # Create the Checkpoints directory if it does not exist
     #checkpoint_dir = os.path.join(os.getcwd(), 'Checkpoints')
@@ -75,24 +57,6 @@ def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpo
     }
     torch.save(checkpoint, checkpoint_path)
     print(f"Checkpoint saved at epoch {epoch} to {checkpoint_path}")
-
-# def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
-#     # Define the relative path to the Checkpoints directory within the MMSC_Thesis folder
-#     checkpoint_dir = os.path.join(os.path.dirname(__file__), 'MMSC_Thesis', 'Checkpoints')
-#     if not os.path.exists(checkpoint_dir):
-#         os.makedirs(checkpoint_dir)
-    
-#     # Create the full checkpoint file path
-#     checkpoint_path = os.path.join(checkpoint_dir, filename)
-    
-#     checkpoint = {
-#         'epoch': epoch,
-#         'model_state_dict': {k: v.state_dict() for k, v in model_dict.items()},
-#         'optimizer_state_dict': {k: v.state_dict() for k, v in optimizer_dict.items()},
-#         'losses': losses
-#     }
-#     torch.save(checkpoint, checkpoint_path)
-#     print(f"Checkpoint saved at epoch {epoch} to {checkpoint_path}")
 
 def get_device(gpu_index=0):
     if torch.cuda.is_available():
@@ -153,10 +117,10 @@ class Supervisor(nn.Module):
         #s = self.fc(s)
         return s
 
-#Dont need to use padded sequence since inputs are always in latent space (same dimension)
-class Discriminator(nn.Module):
+#Now using wasserstein critic instead of discrim
+class Critic(nn.Module):
     def __init__(self, hidden_dim, num_layers):
-        super(Discriminator, self).__init__()
+        super(Critic, self).__init__()
         self.rnn = nn.GRU(hidden_dim, hidden_dim, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_dim, 1)
 
@@ -165,7 +129,51 @@ class Discriminator(nn.Module):
         y_hat = self.fc(y_hat)
         return y_hat
 
-def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
+#Wasserstein requires a gradient penalty in order to insure 1-lip
+# def gradient_penalty(critic, real_data, fake_data, device):
+#     alpha = torch.rand(real_data.size(0), 1, 1).to(device)
+#     interpolates = alpha * real_data + ((1 - alpha) * fake_data)
+#     interpolates = interpolates.requires_grad_(True).to(device)
+
+#     critic_interpolates = critic(interpolates)
+
+#     gradients = torch.autograd.grad(
+#         outputs=critic_interpolates,
+#         inputs=interpolates,
+#         grad_outputs=torch.ones(critic_interpolates.size()).to(device),
+#         create_graph=True,
+#         retain_graph=True,
+#         only_inputs=True
+#     )[0]
+
+#     gradients = gradients.view(gradients.size(0), -1)
+#     gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+#     return gradient_penalty
+
+def gradient_penalty(critic, real_data, fake_data, device):
+    alpha = torch.rand(real_data.size(0), 1, 1).to(device)
+    interpolates = alpha * real_data + ((1 - alpha) * fake_data)
+    interpolates = interpolates.requires_grad_(True).to(device)
+
+    critic_interpolates = critic(interpolates)
+
+    gradients = torch.autograd.grad(
+        outputs=critic_interpolates,
+        inputs=interpolates,
+        grad_outputs=torch.ones(critic_interpolates.size()).to(device),
+        create_graph=True,
+        retain_graph=True,
+        only_inputs=True
+    )[0]
+
+    gradients = gradients.reshape(gradients.size(0), -1)
+    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+    return gradient_penalty
+
+def wasserstein_loss(y_true, y_pred):
+    return torch.mean(y_true * y_pred)
+
+def w_timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
     """TimeGAN function.
 
     Args:
@@ -197,7 +205,7 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
     recovery = Recovery(hidden_dim, dim, num_layers).to(device)
     generator = Generator(z_dim, hidden_dim, num_layers).to(device)
     supervisor = Supervisor(hidden_dim, num_layers).to(device)
-    discriminator = Discriminator(hidden_dim, num_layers).to(device)
+    critic = Critic(hidden_dim, num_layers).to(device)
     
     # Combined optimizer for both embedder and recovery networks
     er_combined_params = list(embedder.parameters()) + list(recovery.parameters())
@@ -205,7 +213,7 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
 
     generator_optimizer = optim.Adam(generator.parameters())
     supervisor_optimizer = optim.Adam(supervisor.parameters())
-    discriminator_optimizer = optim.Adam(discriminator.parameters())
+    critic_optimizer = optim.Adam(critic.parameters())
     
     #COMBINED GENERATOR AND SUPERVISOR OPTIMIZER - BACKPROP THROUGH BOTH NETS In Phase 2
     gs_combined_params = list(generator.parameters()) + list(supervisor.parameters())
@@ -227,11 +235,11 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
         recovery.load_state_dict(checkpoint['model_state_dict']['recovery'])
         generator.load_state_dict(checkpoint['model_state_dict']['generator'])
         supervisor.load_state_dict(checkpoint['model_state_dict']['supervisor'])
-        discriminator.load_state_dict(checkpoint['model_state_dict']['discriminator'])
+        critic.load_state_dict(checkpoint['model_state_dict']['critic'])
         er_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['er_optimizer'])
         generator_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['generator_optimizer'])
         supervisor_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['supervisor_optimizer'])
-        discriminator_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['discriminator_optimizer'])
+        critic_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['critic_optimizer'])
         print(f"Resumed training from epoch {start_epoch}")
 
     # Training Loop
@@ -259,14 +267,14 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
                     'recovery': recovery,
                     'generator': generator,
                     'supervisor': supervisor,
-                    'discriminator': discriminator
+                    'critic': critic
                 },
                 {
                     'er_optimizer': er_optimizer,
                     'generator_optimizer': generator_optimizer,
                     'supervisor_optimizer': supervisor_optimizer,
                     'gs_optimizer': gs_optimizer,
-                    'discriminator_optimizer': discriminator_optimizer
+                    'critic_optimizer': critic_optimizer
                 },
                 {'E_loss0': E_loss0.item()},
                 filename = checkpoint_file
@@ -278,15 +286,11 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
     for itt in range(start_epoch['supervisor'], iterations):
         for X_mb, T_mb in dataloader:
             X_mb, T_mb = X_mb.to(device), T_mb.to(device)
-            #generator_optimizer.zero_grad()
-            #supervisor_optimizer.zero_grad()
             gs_optimizer.zero_grad()
             H = embedder(X_mb)
             H_supervise = supervisor(H)
             G_loss_S = nn.functional.mse_loss(H[:, 1:, :], H_supervise[:, :-1, :])
             G_loss_S.backward()
-            #generator_optimizer.step()
-            #supervisor_optimizer.step()
             gs_optimizer.step()
         
         if itt % 10 == 0:
@@ -301,14 +305,14 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
                     'recovery': recovery,
                     'generator': generator,
                     'supervisor': supervisor,
-                    'discriminator': discriminator
+                    'critic': critic
                 },
                 {
                     'er_optimizer': er_optimizer,
                     'generator_optimizer': generator_optimizer,
                     'supervisor_optimizer': supervisor_optimizer,
                     'gs_optimizer': gs_optimizer,
-                    'discriminator_optimizer': discriminator_optimizer
+                    'critic_optimizer': critic_optimizer
                 },
                 {'G_loss_S': G_loss_S.item()},
                 filename = checkpoint_file
@@ -322,7 +326,6 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
             for X_mb, T_mb in dataloader:       #training gen
                 X_mb, T_mb = X_mb.to(device), T_mb.to(device)
                 generator_optimizer.zero_grad()
-                #er_optimizer.zero_grad()
                 Z_mb = random_generator(batch_size, z_dim, T_mb, max_seq_len)
                 Z_mb = torch.tensor(Z_mb, dtype=torch.float32).to(device)
                 H_hat = generator(Z_mb)
@@ -343,10 +346,12 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
                 G_loss_V = G_loss_V1 + G_loss_V2        #sum V1 and V2
 
                 #One Y_fake for raw output from Generator, Another for Supervised output
-                Y_fake_gen = discriminator(H_hat)       #raw from gen
-                Y_fake = discriminator(H_hat_supervise)     #supervised
-                G_loss_U = nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.ones_like(Y_fake))
-                G_loss_U_gen = nn.functional.binary_cross_entropy_with_logits(Y_fake_gen, torch.ones_like(Y_fake_gen))
+                Y_fake_gen = critic(H_hat)       #raw from gen
+                Y_fake = critic(H_hat_supervise)     #supervised
+                G_loss_U = -torch.mean(Y_fake)
+                G_loss_U_gen = -torch.mean(Y_fake_gen)
+                #G_loss_U = nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.ones_like(Y_fake))
+                #G_loss_U_gen = nn.functional.binary_cross_entropy_with_logits(Y_fake_gen, torch.ones_like(Y_fake_gen))
 
                 G_loss_S = nn.functional.mse_loss(embedder(X_mb)[:, 1:, :], H_hat_supervise[:, :-1, :])
                 
@@ -362,59 +367,60 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
                 er_optimizer.zero_grad()
                 H = embedder(X_mb)
                 X_tilde = recovery(H)
-                #Z_mb = random_generator(batch_size, z_dim, T_mb, max_seq_len)       #new
-                #Z_mb = torch.tensor(Z_mb, dtype=torch.float32).to(device)       #new
-                #H_hat = generator(Z_mb)     #new
-                #H_hat_supervise = supervisor(H_hat) #new
-                #G_loss_S = nn.functional.mse_loss(H[:, 1:, :], H_hat_supervise[:, :-1, :]) #new
+
 
                 E_loss_T0 = nn.functional.mse_loss(X_tilde, X_mb)
                 E_loss0 = 10 * torch.sqrt(E_loss_T0)        #new
-                #E_loss = E_loss0 + 0.1*G_loss_S         #gets backprop gradient info from gen/sup net? new
                 E_loss0.backward()
-                #E_loss.backward()
                 er_optimizer.step()
 
         
         for X_mb, T_mb in dataloader:
             X_mb, T_mb = X_mb.to(device), T_mb.to(device)
-            discriminator_optimizer.zero_grad()
+            critic_optimizer.zero_grad()
             Z_mb = random_generator(batch_size, z_dim, T_mb, max_seq_len)
             Z_mb = torch.tensor(Z_mb, dtype=torch.float32).to(device)
             H_hat = generator(Z_mb)
             H_hat_supervise = supervisor(H_hat)
 
-            #Insert Noise into discrim
-            Y_fake = discriminator(H_hat_supervise)
-            Y_fake_gen = discriminator(H_hat)
-            Y_real = discriminator(embedder(X_mb))
-
-            #add noise for discrim loss inputs (testing)
-            noise_real = torch.normal(mean=0, std=0.2, size=Y_real.size()).to(device)
+            #Insert Noise into critic
+            H_real = embedder(X_mb)
+            noise_real = torch.normal(mean=0, std=0.2, size=H_real.size()).to(device)
             noise_fake = torch.normal(mean=0, std=0.2, size=Y_fake.size()).to(device)
-            noisyY_real = Y_real + noise_real
-            noisyY_fake = Y_fake + noise_fake
-            noisyY_fake_gen = Y_fake_gen + noise_fake
+            Y_fake = critic(H_hat_supervise + noise_fake)
+            Y_fake_gen = critic(H_hat + noise_fake)
+            Y_real = critic(H_real + noise_real)
+
+            #add noise for all discrim loss inputs (testing)
+            # noise_real = torch.normal(mean=0, std=0.2, size=Y_real.size()).to(device)
+            # noise_fake = torch.normal(mean=0, std=0.2, size=Y_fake.size()).to(device)
+            # noisyY_real = Y_real + noise_real
+            # noisyY_fake = Y_fake + noise_fake
+            # noisyY_fake_gen = Y_fake_gen + noise_fake
             
             #Again. one loss for raw outputs from gen, another for supervised outputs
-            #D_loss_real = nn.functional.binary_cross_entropy_with_logits(Y_real, torch.ones_like(Y_real))
-            #D_loss_fake_gen = nn.functional.binary_cross_entropy_with_logits(Y_fake_gen, torch.zeros_like(Y_fake_gen))
-            #D_loss_fake = nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.zeros_like(Y_fake))
-            
-            #testing with noise in loss for all discrim inputs
-            D_loss_real = nn.functional.binary_cross_entropy_with_logits(noisyY_real, torch.ones_like(Y_real))
-            D_loss_fake_gen = nn.functional.binary_cross_entropy_with_logits(noisyY_fake_gen, torch.zeros_like(Y_fake_gen))
-            D_loss_fake = nn.functional.binary_cross_entropy_with_logits(noisyY_fake, torch.zeros_like(Y_fake))
-            D_loss = D_loss_real + D_loss_fake + gamma * D_loss_fake_gen
+            # D_loss_real = nn.functional.binary_cross_entropy_with_logits(noisyY_real, torch.ones_like(Y_real))
+            # D_loss_fake_gen = nn.functional.binary_cross_entropy_with_logits(noisyY_fake_gen, torch.zeros_like(Y_fake_gen))
+            # D_loss_fake = nn.functional.binary_cross_entropy_with_logits(noisyY_fake, torch.zeros_like(Y_fake))
+            # D_loss = D_loss_real + D_loss_fake + gamma * D_loss_fake_gen
 
-            if D_loss.item() > 0.15:
-                discriminator_optimizer.zero_grad()
-                D_loss.backward()
-                discriminator_optimizer.step()    
+            D_loss_real = -torch.mean(Y_real)
+            D_loss_fake_gen = torch.mean(Y_fake_gen)
+            D_loss_fake = torch.mean(Y_fake)
+
+            gp = gradient_penalty(critic, embedder(X_mb).detach(), H_hat_supervise.detach(), device)
+            D_loss = D_loss_real + D_loss_fake + gamma * D_loss_fake_gen + 10 * gp
+
+            D_loss.backward()
+            critic_optimizer.step()
+            # if D_loss.item() > 0.15:
+            #     discriminator_optimizer.zero_grad()
+            #     D_loss.backward()
+            #     discriminator_optimizer.step()    
 
         
         if itt % 10 == 0:
-            print(f'step: {itt}/{iterations}, d_loss: {D_loss.item()}, g_loss_u: {G_loss_U.item()}, g_loss_s: {G_loss_S.item()}, g_loss_v: {G_loss_V.item()}')
+            print(f'step: {itt}/{iterations}, c_loss: {D_loss.item()}, g_loss_u: {G_loss_U.item()}, g_loss_s: {G_loss_S.item()}, g_loss_v: {G_loss_V.item()}')
         
         # Save checkpoint every 100 epochs
         if (itt + 1) % 100 == 0:
@@ -425,14 +431,14 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
                     'recovery': recovery,
                     'generator': generator,
                     'supervisor': supervisor,
-                    'discriminator': discriminator
+                    'critic': critic
                 },
                 {
                     'er_optimizer': er_optimizer,
                     'generator_optimizer': generator_optimizer,
                     'supervisor_optimizer': supervisor_optimizer,
                     'gs_optimizer': gs_optimizer,
-                    'discriminator_optimizer': discriminator_optimizer
+                    'critic_optimizer': critic_optimizer
                 },
                 {
                     'D_loss': D_loss.item(),
@@ -447,7 +453,6 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
     
     # Generate random latent variables
     Z_mb = random_generator(no, z_dim, ori_time, max_seq_len)
-    #Z_mb = np.array(Z_mb)
     Z_mb = torch.tensor(Z_mb, dtype=torch.float32).to(device)
     
     # Generate synthetic data
@@ -465,4 +470,4 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
     # Renormalization
     generated_data = np.array([(data * max_val) + min_val for data in generated_data])
     
-    return generated_data, embedder, recovery, supervisor, discriminator, generator
+    return generated_data, embedder, recovery, supervisor, critic, generator
