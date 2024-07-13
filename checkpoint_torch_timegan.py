@@ -385,16 +385,19 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
             H_hat_supervise = supervisor(H_hat)
 
             #Insert Noise into discrim
-            Y_fake = discriminator(H_hat_supervise)
-            Y_fake_gen = discriminator(H_hat)
-            Y_real = discriminator(embedder(X_mb))
+            H_real = embedder(X_mb)
+            noise_real = torch.normal(mean=0, std=0.2, size=H_real.size()).to(device)
+            noise_fake = torch.normal(mean=0, std=0.2, size=Y_fake.size()).to(device)
+            noisyY_fake = discriminator(H_hat_supervise + noise_fake)
+            noisyY_fake_gen = discriminator(H_hat + noise_fake)
+            noisyY_real = discriminator(embedder(X_mb) + noise_real)
 
             #add noise for discrim loss inputs (testing)
-            noise_real = torch.normal(mean=0, std=0.2, size=Y_real.size()).to(device)
-            noise_fake = torch.normal(mean=0, std=0.2, size=Y_fake.size()).to(device)
-            noisyY_real = Y_real + noise_real
-            noisyY_fake = Y_fake + noise_fake
-            noisyY_fake_gen = Y_fake_gen + noise_fake
+            # noise_real = torch.normal(mean=0, std=0.2, size=Y_real.size()).to(device)
+            # noise_fake = torch.normal(mean=0, std=0.2, size=Y_fake.size()).to(device)
+            # noisyY_real = Y_real + noise_real
+            # noisyY_fake = Y_fake + noise_fake
+            # noisyY_fake_gen = Y_fake_gen + noise_fake
             
             #Again. one loss for raw outputs from gen, another for supervised outputs
             #D_loss_real = nn.functional.binary_cross_entropy_with_logits(Y_real, torch.ones_like(Y_real))
@@ -402,7 +405,7 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
             #D_loss_fake = nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.zeros_like(Y_fake))
             
             #testing with noise in loss for all discrim inputs
-            D_loss_real = nn.functional.binary_cross_entropy_with_logits(noisyY_real, torch.ones_like(Y_real))
+            D_loss_real = nn.functional.binary_cross_entropy_with_logits(noisyY_real, torch.ones_like(noisyY_real))
             D_loss_fake_gen = nn.functional.binary_cross_entropy_with_logits(noisyY_fake_gen, torch.zeros_like(Y_fake_gen))
             D_loss_fake = nn.functional.binary_cross_entropy_with_logits(noisyY_fake, torch.zeros_like(Y_fake))
             D_loss = D_loss_real + D_loss_fake + gamma * D_loss_fake_gen

@@ -209,15 +209,15 @@ def w_timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
     
     # Combined optimizer for both embedder and recovery networks
     er_combined_params = list(embedder.parameters()) + list(recovery.parameters())
-    er_optimizer = optim.Adam(er_combined_params)
+    er_optimizer = optim.RMSprop(er_combined_params)
 
-    generator_optimizer = optim.Adam(generator.parameters())
-    supervisor_optimizer = optim.Adam(supervisor.parameters())
-    critic_optimizer = optim.Adam(critic.parameters())
+    generator_optimizer = optim.RMSprop(generator.parameters())
+    supervisor_optimizer = optim.RMSprop(supervisor.parameters())
+    critic_optimizer = optim.RMSprop(critic.parameters())
     
     #COMBINED GENERATOR AND SUPERVISOR OPTIMIZER - BACKPROP THROUGH BOTH NETS In Phase 2
     gs_combined_params = list(generator.parameters()) + list(supervisor.parameters())
-    gs_optimizer = optim.Adam(gs_combined_params)
+    gs_optimizer = optim.RMSprop(gs_combined_params)
     
     # DataLoader
     normed_data = torch.tensor(normed_data, dtype=torch.float32).to(device)
@@ -411,12 +411,12 @@ def w_timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
             gp = gradient_penalty(critic, embedder(X_mb).detach(), H_hat_supervise.detach(), device)
             D_loss = D_loss_real + D_loss_fake + gamma * D_loss_fake_gen + 10 * gp
 
-            D_loss.backward()
-            critic_optimizer.step()
-            # if D_loss.item() > 0.15:
-            #     discriminator_optimizer.zero_grad()
+            #D_loss.backward()
+            #critic_optimizer.step()
+            # if abs(D_loss.item()) > 0.15:
+            #     critic_optimizer.zero_grad()
             #     D_loss.backward()
-            #     discriminator_optimizer.step()    
+            #     critic_optimizer.step()    
 
         
         if itt % 10 == 0:
