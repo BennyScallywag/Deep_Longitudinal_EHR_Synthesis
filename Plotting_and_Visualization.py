@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+import os
 
-def plot_original_vs_generated(original_data, generated_data, num_samples=5):
+def plot_original_vs_generated(original_data, generated_data, filename, num_samples=5):
     """
     Plots the original vs generated time-series data for comparison.
     
@@ -10,6 +11,7 @@ def plot_original_vs_generated(original_data, generated_data, num_samples=5):
     - original_data: List of original time-series data samples.
     - generated_data: List of generated time-series data samples.
     - num_samples: Number of samples to plot. Default is 5.
+    - filename: Name to save the figure under
     """
     fig, axes = plt.subplots(1, 2, figsize=(15, 5))
     fig.suptitle('Original vs Generated Data Comparison', fontsize=16)
@@ -31,4 +33,13 @@ def plot_original_vs_generated(original_data, generated_data, num_samples=5):
     #axes[1].legend()
     
     plt.tight_layout(rect=[0, 0, 1, 0.96])
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    plot_dir = os.path.join(script_dir, '..', 'Plots')
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+    
+    # Create the full checkpoint file path
+    plot_path = os.path.join(plot_dir, filename)
+    plt.savefig(plot_path, format='pdf')
     plt.show()

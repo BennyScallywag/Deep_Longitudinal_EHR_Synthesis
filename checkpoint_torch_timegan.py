@@ -39,27 +39,8 @@ def load_checkpoint(filename='checkpoint.pth'):
         print(f"Checkpoint loaded from {checkpoint_path}")
         return checkpoint
 
-    # if os.path.exists(checkpoint_path):
-    #     checkpoint = torch.load(checkpoint_path)
-    #     print(f"Checkpoint loaded from {checkpoint_path}")
-    #     return checkpoint
-    # else:
-    #     print(f"No checkpoint found at {checkpoint_path}")
-    #     return None
-
-# def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
-#     checkpoint = {
-#         'epoch': epoch,
-#         'model_state_dict': {k: v.state_dict() for k, v in model_dict.items()},
-#         'optimizer_state_dict': {k: v.state_dict() for k, v in optimizer_dict.items()},
-#         'losses': losses
-#     }
-#     torch.save(checkpoint, filename)
-#     print(f"Checkpoint saved at epoch {epoch}")
-
 def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
     # Create the Checkpoints directory if it does not exist
-    #checkpoint_dir = os.path.join(os.getcwd(), 'Checkpoints')
     checkpoint_dir = os.path.join(os.path.dirname(__file__), 'Checkpoints')
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -75,24 +56,6 @@ def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpo
     }
     torch.save(checkpoint, checkpoint_path)
     print(f"Checkpoint saved at epoch {epoch} to {checkpoint_path}")
-
-# def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
-#     # Define the relative path to the Checkpoints directory within the MMSC_Thesis folder
-#     checkpoint_dir = os.path.join(os.path.dirname(__file__), 'MMSC_Thesis', 'Checkpoints')
-#     if not os.path.exists(checkpoint_dir):
-#         os.makedirs(checkpoint_dir)
-    
-#     # Create the full checkpoint file path
-#     checkpoint_path = os.path.join(checkpoint_dir, filename)
-    
-#     checkpoint = {
-#         'epoch': epoch,
-#         'model_state_dict': {k: v.state_dict() for k, v in model_dict.items()},
-#         'optimizer_state_dict': {k: v.state_dict() for k, v in optimizer_dict.items()},
-#         'losses': losses
-#     }
-#     torch.save(checkpoint, checkpoint_path)
-#     print(f"Checkpoint saved at epoch {epoch} to {checkpoint_path}")
 
 def get_device(gpu_index=0):
     if torch.cuda.is_available():
@@ -362,11 +325,6 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
                 er_optimizer.zero_grad()
                 H = embedder(X_mb)
                 X_tilde = recovery(H)
-                #Z_mb = random_generator(batch_size, z_dim, T_mb, max_seq_len)       #new
-                #Z_mb = torch.tensor(Z_mb, dtype=torch.float32).to(device)       #new
-                #H_hat = generator(Z_mb)     #new
-                #H_hat_supervise = supervisor(H_hat) #new
-                #G_loss_S = nn.functional.mse_loss(H[:, 1:, :], H_hat_supervise[:, :-1, :]) #new
 
                 E_loss_T0 = nn.functional.mse_loss(X_tilde, X_mb)
                 E_loss0 = 10 * torch.sqrt(E_loss_T0)        #new
@@ -386,28 +344,16 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
 
             #Insert Noise into discrim
             H_real = embedder(X_mb)
-            noise_real = torch.normal(mean=0, std=0.2, size=H_real.size()).to(device)
-            noise_fake = torch.normal(mean=0, std=0.2, size=Y_fake.size()).to(device)
+            noise_real = torch.normal(mean=0, std=0.3, size=H_real.size()).to(device)
+            noise_fake = torch.normal(mean=0, std=0.3, size=H_hat.size()).to(device)
             noisyY_fake = discriminator(H_hat_supervise + noise_fake)
             noisyY_fake_gen = discriminator(H_hat + noise_fake)
             noisyY_real = discriminator(embedder(X_mb) + noise_real)
 
-            #add noise for discrim loss inputs (testing)
-            # noise_real = torch.normal(mean=0, std=0.2, size=Y_real.size()).to(device)
-            # noise_fake = torch.normal(mean=0, std=0.2, size=Y_fake.size()).to(device)
-            # noisyY_real = Y_real + noise_real
-            # noisyY_fake = Y_fake + noise_fake
-            # noisyY_fake_gen = Y_fake_gen + noise_fake
-            
-            #Again. one loss for raw outputs from gen, another for supervised outputs
-            #D_loss_real = nn.functional.binary_cross_entropy_with_logits(Y_real, torch.ones_like(Y_real))
-            #D_loss_fake_gen = nn.functional.binary_cross_entropy_with_logits(Y_fake_gen, torch.zeros_like(Y_fake_gen))
-            #D_loss_fake = nn.functional.binary_cross_entropy_with_logits(Y_fake, torch.zeros_like(Y_fake))
-            
             #testing with noise in loss for all discrim inputs
             D_loss_real = nn.functional.binary_cross_entropy_with_logits(noisyY_real, torch.ones_like(noisyY_real))
-            D_loss_fake_gen = nn.functional.binary_cross_entropy_with_logits(noisyY_fake_gen, torch.zeros_like(Y_fake_gen))
-            D_loss_fake = nn.functional.binary_cross_entropy_with_logits(noisyY_fake, torch.zeros_like(Y_fake))
+            D_loss_fake_gen = nn.functional.binary_cross_entropy_with_logits(noisyY_fake_gen, torch.zeros_like(noisyY_fake_gen))
+            D_loss_fake = nn.functional.binary_cross_entropy_with_logits(noisyY_fake, torch.zeros_like(noisyY_fake))
             D_loss = D_loss_real + D_loss_fake + gamma * D_loss_fake_gen
 
             if D_loss.item() > 0.15:
