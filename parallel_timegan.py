@@ -4,9 +4,7 @@ import torch.optim as optim
 import numpy as np
 import os
 from torch.utils.data import DataLoader, TensorDataset
-from torch.nn.parallel import DistributedDataParallel as DDP
-import torch.distributed as dist
-import torch.multiprocessing as mp
+from torch.nn.parallel import DataParallel
 # rnn_cell uses tensorflow builtins, the other three do not
 from torch_utils import extract_time, rnn_cell, random_generator, batch_generator
 
@@ -115,19 +113,8 @@ class Discriminator(nn.Module):
         y_hat = self.fc(y_hat)
         return y_hat
 
-def setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
-    dist.init_process_group(backend='nccl', rank=rank, world_size=world_size)
-    torch.cuda.set_device(rank)
-
-def cleanup():
-    dist.destroy_process_group()
-
-def parallel_timegan(rank, world_size, ori_data, parameters, checkpoint_file='checkpoint.pth'):
-    setup(rank, world_size)
-
-    device = torch.device(f'cuda:{rank}')
+def parallel_timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Basic Parameters
     no, seq_len, dim = np.asarray(ori_data).shape
@@ -153,12 +140,12 @@ def parallel_timegan(rank, world_size, ori_data, parameters, checkpoint_file='ch
     supervisor = Supervisor(hidden_dim, num_layers).to(device)
     discriminator = Discriminator(hidden_dim, num_layers).to(device)
 
-    # Wrapping with DDP
-    embedder = DDP(embedder, device_ids=[rank], output_device=rank)
-    recovery = DDP(recovery, device_ids=[rank], output_device=rank)
-    generator = DDP(generator, device_ids=[rank], output_device=rank)
-    supervisor = DDP(supervisor, device_ids=[rank], output_device=rank)
-    critic = DDP(discriminator, device_ids=[rank], output_device=rank)
+    # Wrapping with DataParallel
+    embedder = DataParallel(embedder)
+    recovery = DataParallel(recovery)
+    generator = DataParallel(generator)
+    supervisor = DataParallel(supervisor)
+    critic = DataParallel(discriminator)
 
     # Combined optimizer for both embedder and recovery networks
     er_combined_params = list(embedder.parameters()) + list(recovery.parameters())
@@ -172,12 +159,11 @@ def parallel_timegan(rank, world_size, ori_data, parameters, checkpoint_file='ch
     gs_combined_params = list(generator.parameters()) + list(supervisor.parameters())
     gs_optimizer = optim.Adam(gs_combined_params)
 
-    # DataLoader with DistributedSampler
+    # DataLoader
     normed_data = torch.tensor(normed_data, dtype=torch.float32).to(device)
     ori_time = torch.tensor(ori_time, dtype=torch.int32).to(device)
     dataset = TensorDataset(normed_data, ori_time)
-    train_sampler = torch.utils.data.distributed.DistributedSampler(dataset, num_replicas=world_size, rank=rank)
-    dataloader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     # Load checkpoint if one exists
     start_epoch = {'embedding': 0, 'supervisor': 0, 'joint': 0}
@@ -198,7 +184,6 @@ def parallel_timegan(rank, world_size, ori_data, parameters, checkpoint_file='ch
     # Training Loop
     print('Start Embedding Network Training')
     for itt in range(start_epoch['embedding'], iterations):
-        train_sampler.set_epoch(itt)  # Ensure different shuffling for each epoch
         for X_mb, T_mb in dataloader:
             X_mb, T_mb = X_mb.to(device), T_mb.to(device)
             er_optimizer.zero_grad()
@@ -217,7 +202,7 @@ def parallel_timegan(rank, world_size, ori_data, parameters, checkpoint_file='ch
             print(f'step: {itt}/{iterations}, e_loss: {E_loss0.item()}')
 
         # Save checkpoint every 100 epochs
-        if (itt + 1) % 100 == 0 and rank == 0:  # Only rank 0 saves checkpoints
+        if (itt + 1) % 100 == 0:
             save_checkpoint(
                 {'embedding': itt + 1, 'supervisor': 0, 'joint': 0},
                 {
@@ -242,7 +227,6 @@ def parallel_timegan(rank, world_size, ori_data, parameters, checkpoint_file='ch
 
     print('Start Training with Supervised Loss Only')
     for itt in range(start_epoch['supervisor'], iterations):
-        train_sampler.set_epoch(itt)  # Ensure different shuffling for each epoch
         for X_mb, T_mb in dataloader:
             X_mb, T_mb = X_mb.to(device), T_mb.to(device)
             gs_optimizer.zero_grad()
@@ -260,7 +244,7 @@ def parallel_timegan(rank, world_size, ori_data, parameters, checkpoint_file='ch
             print(f'step: {itt}/{iterations}, s_loss: {G_loss_S.item()}')
 
         # Save checkpoint every 100 epochs
-        if (itt + 1) % 100 == 0 and rank == 0:  # Only rank 0 saves checkpoints
+        if (itt + 1) % 100 == 0:
             save_checkpoint(
                 {'embedding': iterations, 'supervisor': itt + 1, 'joint': 0},
                 {
@@ -285,7 +269,6 @@ def parallel_timegan(rank, world_size, ori_data, parameters, checkpoint_file='ch
 
     print('Start Joint Training')
     for itt in range(start_epoch['joint'], iterations):
-        train_sampler.set_epoch(itt)  # Ensure different shuffling for each epoch
         for kk in range(2):
             for X_mb, T_mb in dataloader:  # training gen
                 X_mb, T_mb = X_mb.to(device), T_mb.to(device)
@@ -377,7 +360,7 @@ def parallel_timegan(rank, world_size, ori_data, parameters, checkpoint_file='ch
             print(f'step: {itt}/{iterations}, d_loss: {D_loss.item()}, g_loss_u: {G_loss_U.item()}, g_loss_s: {G_loss_S.item()}, g_loss_v: {G_loss_V.item()}')
 
         # Save checkpoint every 100 epochs
-        if (itt + 1) % 100 == 0 and rank == 0:  # Only rank 0 saves checkpoints
+        if (itt + 1) % 100 == 0:
             save_checkpoint(
                 {'embedding': iterations, 'supervisor': iterations, 'joint': itt + 1},
                 {
@@ -423,7 +406,5 @@ def parallel_timegan(rank, world_size, ori_data, parameters, checkpoint_file='ch
 
     # Renormalization
     generated_data = np.array([(data * max_val) + min_val for data in generated_data])
-
-    cleanup()
 
     return generated_data, embedder, recovery, supervisor, discriminator, generator

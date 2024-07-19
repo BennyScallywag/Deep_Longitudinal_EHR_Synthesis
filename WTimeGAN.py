@@ -39,16 +39,32 @@ def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpo
     torch.save(checkpoint, checkpoint_path)
     print(f"Checkpoint saved at epoch {epoch} to {checkpoint_path}")
 
-def get_device(gpu_index=0):
+def get_device():
     if torch.cuda.is_available():
-        device = torch.device(f"cuda:{gpu_index}")
-        print(f"Using GPU {gpu_index}: {torch.cuda.get_device_name(gpu_index)}")
+        try:
+            # Get the list of GPUs
+            result = subprocess.run(['nvidia-smi', '--query-gpu=index,memory.free', '--format=csv,nounits,noheader'], stdout=subprocess.PIPE)
+            output = result.stdout.decode('utf-8')
+            
+            # Parse the output
+            gpus = output.strip().split('\n')
+            free_memory = []
+            for gpu in gpus:
+                index, memory_free = gpu.split(',')
+                free_memory.append((int(index), int(memory_free)))
+            
+            # Get the GPU with the most free memory
+            gpu_index = max(free_memory, key=lambda x: x[1])[0]
+            device = torch.device(f"cuda:{gpu_index}")
+            print(f"Using GPU {gpu_index}: {torch.cuda.get_device_name(gpu_index)}")
+        except Exception as e:
+            print(f"Error querying GPUs: {e}")
+            device = torch.device("cuda:0")
+            print(f"Defaulting to GPU 0: {torch.cuda.get_device_name(0)}")
     else:
         device = torch.device("cpu")
         print("Using CPU")
     return device
-
-device = get_device(gpu_index=2)
 
 class Embedder(nn.Module):
     def __init__(self, input_size, hidden_dim, num_layers):
@@ -126,6 +142,8 @@ def wasserstein_loss(y_true, y_pred):
     return torch.mean(y_true * y_pred)
 
 def w_timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
+    device = get_device()
+
     no, seq_len, dim = np.asarray(ori_data).shape
     ori_time, max_seq_len = extract_time(ori_data)
     normed_data, min_val, max_val = MinMaxScaler(ori_data)
@@ -142,13 +160,15 @@ def w_timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
     supervisor = Supervisor(hidden_dim, num_layers).to(device)
     critic = Critic(hidden_dim, num_layers).to(device)
     
+    #Combining parameters of nets trained together into one list
     er_combined_params = list(embedder.parameters()) + list(recovery.parameters())
+    gs_combined_params = list(generator.parameters()) + list(supervisor.parameters())
+
+    #maybe try Adam?
     er_optimizer = optim.RMSprop(er_combined_params, lr=1e-5)
     generator_optimizer = optim.RMSprop(generator.parameters(), lr=1e-5)
     supervisor_optimizer = optim.RMSprop(supervisor.parameters(), lr=1e-5)
     critic_optimizer = optim.RMSprop(critic.parameters(), lr=1e-5)
-    
-    gs_combined_params = list(generator.parameters()) + list(supervisor.parameters())
     gs_optimizer = optim.RMSprop(gs_combined_params, lr=1e-4)
     
     normed_data = torch.tensor(normed_data, dtype=torch.float32).to(device)

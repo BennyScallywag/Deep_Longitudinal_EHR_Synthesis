@@ -4,6 +4,7 @@ import torch.optim as optim
 import numpy as np
 import os
 from torch.utils.data import DataLoader, TensorDataset
+import subprocess
 #rnn_cell uses tensorflow builtins, the other three do not
 from torch_utils import extract_time, rnn_cell, random_generator, batch_generator
 
@@ -57,16 +58,41 @@ def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpo
     torch.save(checkpoint, checkpoint_path)
     print(f"Checkpoint saved at epoch {epoch} to {checkpoint_path}")
 
-def get_device(gpu_index=0):
+# def get_device(gpu_index=0):
+#     if torch.cuda.is_available():
+#         device = torch.device(f"cuda:{gpu_index}")
+#         print(f"Using GPU {gpu_index}: {torch.cuda.get_device_name(gpu_index)}")
+#     else:
+#         device = torch.device("cpu")
+#         print("Using CPU")
+#     return device
+
+def get_device():
     if torch.cuda.is_available():
-        device = torch.device(f"cuda:{gpu_index}")
-        print(f"Using GPU {gpu_index}: {torch.cuda.get_device_name(gpu_index)}")
+        try:
+            # Get the list of GPUs
+            result = subprocess.run(['nvidia-smi', '--query-gpu=index,memory.free', '--format=csv,nounits,noheader'], stdout=subprocess.PIPE)
+            output = result.stdout.decode('utf-8')
+            
+            # Parse the output
+            gpus = output.strip().split('\n')
+            free_memory = []
+            for gpu in gpus:
+                index, memory_free = gpu.split(',')
+                free_memory.append((int(index), int(memory_free)))
+            
+            # Get the GPU with the most free memory
+            gpu_index = max(free_memory, key=lambda x: x[1])[0]
+            device = torch.device(f"cuda:{gpu_index}")
+            print(f"Using GPU {gpu_index}: {torch.cuda.get_device_name(gpu_index)}")
+        except Exception as e:
+            print(f"Error querying GPUs: {e}")
+            device = torch.device("cuda:0")
+            print(f"Defaulting to GPU 0: {torch.cuda.get_device_name(0)}")
     else:
         device = torch.device("cpu")
         print("Using CPU")
     return device
-
-device = get_device(gpu_index=2)
 
 class Embedder(nn.Module):
     def __init__(self, input_size, hidden_dim, num_layers):
@@ -138,6 +164,9 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
          where iterations = num epochs, z_dim = ..., gamma = ...
        - checkpoint_file: Filename of the checkpoint to load. If None, starts from scratch.
     """
+    #GPU
+    device = get_device()
+
     # Basic Parameters
     no, seq_len, dim = np.asarray(ori_data).shape       #works with seq_len=1
     
@@ -281,7 +310,7 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
 
     print('Start Joint Training')
     for itt in range(start_epoch['joint'], iterations):
-        for kk in range(2): 
+        for kk in range(3): 
             for X_mb, T_mb in dataloader:       #training gen
                 X_mb, T_mb = X_mb.to(device), T_mb.to(device)
                 generator_optimizer.zero_grad()
@@ -344,8 +373,8 @@ def timegan(ori_data, parameters, checkpoint_file='checkpoint.pth'):
 
             #Insert Noise into discrim
             H_real = embedder(X_mb)
-            noise_real = torch.normal(mean=0, std=0.3, size=H_real.size()).to(device)
-            noise_fake = torch.normal(mean=0, std=0.3, size=H_hat.size()).to(device)
+            noise_real = torch.normal(mean=0, std=0.1, size=H_real.size()).to(device)
+            noise_fake = torch.normal(mean=0, std=0.1, size=H_hat.size()).to(device)
             noisyY_fake = discriminator(H_hat_supervise + noise_fake)
             noisyY_fake_gen = discriminator(H_hat + noise_fake)
             noisyY_real = discriminator(embedder(X_mb) + noise_real)

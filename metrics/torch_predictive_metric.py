@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import mean_absolute_error
+import subprocess
 
 def extract_time(data):
     """Extract time information from the data."""
@@ -10,16 +11,32 @@ def extract_time(data):
     max_seq_len = max(time)
     return time, max_seq_len
 
-def get_device(gpu_index=0):
+def get_device():
     if torch.cuda.is_available():
-        device = torch.device(f"cuda:{gpu_index}")
-        print(f"Using GPU {gpu_index}: {torch.cuda.get_device_name(gpu_index)}")
+        try:
+            # Get the list of GPUs
+            result = subprocess.run(['nvidia-smi', '--query-gpu=index,memory.free', '--format=csv,nounits,noheader'], stdout=subprocess.PIPE)
+            output = result.stdout.decode('utf-8')
+            
+            # Parse the output
+            gpus = output.strip().split('\n')
+            free_memory = []
+            for gpu in gpus:
+                index, memory_free = gpu.split(',')
+                free_memory.append((int(index), int(memory_free)))
+            
+            # Get the GPU with the most free memory
+            gpu_index = max(free_memory, key=lambda x: x[1])[0]
+            device = torch.device(f"cuda:{gpu_index}")
+            print(f"Using GPU {gpu_index}: {torch.cuda.get_device_name(gpu_index)}")
+        except Exception as e:
+            print(f"Error querying GPUs: {e}")
+            device = torch.device("cuda:0")
+            print(f"Defaulting to GPU 0: {torch.cuda.get_device_name(0)}")
     else:
         device = torch.device("cpu")
         print("Using CPU")
     return device
-
-device = get_device(gpu_index=2)
 
 class Predictor(nn.Module):
     def __init__(self, input_dim, hidden_dim):
@@ -48,6 +65,7 @@ def predictive_score_metrics(ori_data, generated_data):
     """
     
     # Basic Parameters
+    device = get_device()
     ori_data = np.asarray(ori_data)
     generated_data = np.asarray(generated_data)
     no, seq_len, dim = ori_data.shape
