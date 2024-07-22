@@ -22,9 +22,9 @@ utils.py
 
 ## Necessary Packages
 import numpy as np
-#import tensorflow as tf
 import torch
 import torch.nn as nn
+import subprocess
 
 
 def train_test_divide (data_x, data_x_hat, data_t, data_t_hat, train_rate = 0.8):
@@ -140,24 +140,38 @@ def random_generator (batch_size, z_dim, T_mb, max_seq_len):
     Z_mb.append(temp_Z)
   return np.array(Z_mb)
 
-
 def batch_generator(data, time, batch_size):
-  """Mini-batch generator.
-  
-  Args:
-    - data: time-series data
-    - time: time information
-    - batch_size: the number of samples in each batch
-    
-  Returns:
-    - X_mb: time-series data in each batch
-    - T_mb: time information in each batch
-  """
-  no = len(data)
-  idx = np.random.permutation(no)
-  train_idx = idx[:batch_size]     
+    """Generate batches of data."""
+    idx = np.random.permutation(len(data))
+    idx = idx[:batch_size]
+    batch_data = [torch.tensor(data[i], dtype=torch.float32) for i in idx]
+    batch_time = [time[i] for i in idx]
+    batch_data = nn.utils.rnn.pad_sequence(batch_data, batch_first=True)
+    return batch_data, batch_time
+
+def get_device():
+    if torch.cuda.is_available():
+        try:
+            # Get the list of GPUs
+            result = subprocess.run(['nvidia-smi', '--query-gpu=index,memory.free', '--format=csv,nounits,noheader'], stdout=subprocess.PIPE)
+            output = result.stdout.decode('utf-8')
             
-  X_mb = list(data[i] for i in train_idx)
-  T_mb = list(time[i] for i in train_idx)
-  
-  return X_mb, T_mb
+            # Parse the output
+            gpus = output.strip().split('\n')
+            free_memory = []
+            for gpu in gpus:
+                index, memory_free = gpu.split(',')
+                free_memory.append((int(index), int(memory_free)))
+            
+            # Get the GPU with the most free memory
+            gpu_index = max(free_memory, key=lambda x: x[1])[0]
+            device = torch.device(f"cuda:{gpu_index}")
+            print(f"Using GPU {gpu_index}: {torch.cuda.get_device_name(gpu_index)}")
+        except Exception as e:
+            print(f"Error querying GPUs: {e}")
+            device = torch.device("cuda:0")
+            print(f"Defaulting to GPU 0: {torch.cuda.get_device_name(0)}")
+    else:
+        device = torch.device("cpu")
+        print("Using CPU")
+    return device

@@ -3,40 +3,41 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import mean_absolute_error
+from torch_utils import get_device, batch_generator, train_test_divide, extract_time
 import subprocess
 
-def extract_time(data):
-    """Extract time information from the data."""
-    time = [len(seq) for seq in data]
-    max_seq_len = max(time)
-    return time, max_seq_len
+# def extract_time(data):
+#     """Extract time information from the data."""
+#     time = [len(seq) for seq in data]
+#     max_seq_len = max(time)
+#     return time, max_seq_len
 
-def get_device():
-    if torch.cuda.is_available():
-        try:
-            # Get the list of GPUs
-            result = subprocess.run(['nvidia-smi', '--query-gpu=index,memory.free', '--format=csv,nounits,noheader'], stdout=subprocess.PIPE)
-            output = result.stdout.decode('utf-8')
+# def get_device():
+#     if torch.cuda.is_available():
+#         try:
+#             # Get the list of GPUs
+#             result = subprocess.run(['nvidia-smi', '--query-gpu=index,memory.free', '--format=csv,nounits,noheader'], stdout=subprocess.PIPE)
+#             output = result.stdout.decode('utf-8')
             
-            # Parse the output
-            gpus = output.strip().split('\n')
-            free_memory = []
-            for gpu in gpus:
-                index, memory_free = gpu.split(',')
-                free_memory.append((int(index), int(memory_free)))
+#             # Parse the output
+#             gpus = output.strip().split('\n')
+#             free_memory = []
+#             for gpu in gpus:
+#                 index, memory_free = gpu.split(',')
+#                 free_memory.append((int(index), int(memory_free)))
             
-            # Get the GPU with the most free memory
-            gpu_index = max(free_memory, key=lambda x: x[1])[0]
-            device = torch.device(f"cuda:{gpu_index}")
-            print(f"Using GPU {gpu_index}: {torch.cuda.get_device_name(gpu_index)}")
-        except Exception as e:
-            print(f"Error querying GPUs: {e}")
-            device = torch.device("cuda:0")
-            print(f"Defaulting to GPU 0: {torch.cuda.get_device_name(0)}")
-    else:
-        device = torch.device("cpu")
-        print("Using CPU")
-    return device
+#             # Get the GPU with the most free memory
+#             gpu_index = max(free_memory, key=lambda x: x[1])[0]
+#             device = torch.device(f"cuda:{gpu_index}")
+#             print(f"Using GPU {gpu_index}: {torch.cuda.get_device_name(gpu_index)}")
+#         except Exception as e:
+#             print(f"Error querying GPUs: {e}")
+#             device = torch.device("cuda:0")
+#             print(f"Defaulting to GPU 0: {torch.cuda.get_device_name(0)}")
+#     else:
+#         device = torch.device("cpu")
+#         print("Using CPU")
+#     return device
 
 class Predictor(nn.Module):
     def __init__(self, input_dim, hidden_dim):
@@ -85,6 +86,8 @@ def predictive_score_metrics(ori_data, generated_data):
     criterion = nn.L1Loss()
     optimizer = optim.Adam(model.parameters())
     
+    train_x, train_x_hat, test_x, test_x_hat, train_t, train_t_hat, test_t, test_t_hat = train_test_divide(ori_data, generated_data, ori_time, generated_time, train_rate=0.8)
+
     # Training using Synthetic dataset
     model.train()
     for itt in range(iterations):
@@ -118,15 +121,12 @@ def predictive_score_metrics(ori_data, generated_data):
     
     X_mb = nn.utils.rnn.pad_sequence(X_mb, batch_first=True)
     Y_mb = nn.utils.rnn.pad_sequence(Y_mb, batch_first=True)
-    
+
     with torch.no_grad():
         pred_Y_curr = model(X_mb, T_mb)
     
-    # Compute the performance in terms of MAE
-    MAE_temp = 0
-    for i in range(no):
-        MAE_temp += mean_absolute_error(Y_mb[i].cpu().numpy(), pred_Y_curr[i].cpu().numpy())
+    predictive_score = torch.mean(torch.abs(Y_mb - pred_Y_curr))
     
-    predictive_score = MAE_temp / no
+    #predictive_score = MAE_temp / no
     
     return predictive_score

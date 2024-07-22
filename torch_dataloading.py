@@ -22,6 +22,7 @@ data_loading.py
 
 ## Necessary Packages
 import numpy as np
+import os
 
 
 def MinMaxScaler(data):
@@ -88,11 +89,14 @@ def real_data_loading (data_name, seq_len):
     - data: preprocessed data.
   """  
   assert data_name in ['stock','energy']
+  directory = os.path.dirname(__file__)
+  stockpath = os.path.join(directory, 'data', 'stock_data.csv')
+  energypath = os.path.join(directory, 'data', 'energy_data.csv')
   
   if data_name == 'stock':
-    ori_data = np.loadtxt('data/stock_data.csv', delimiter = ",",skiprows = 1)
+    ori_data = np.loadtxt(stockpath, delimiter = ",",skiprows = 1)
   elif data_name == 'energy':
-    ori_data = np.loadtxt('data/energy_data.csv', delimiter = ",",skiprows = 1)
+    ori_data = np.loadtxt(energypath, delimiter = ",",skiprows = 1)
         
   # Flip the data to make chronological data
   ori_data = ori_data[::-1]

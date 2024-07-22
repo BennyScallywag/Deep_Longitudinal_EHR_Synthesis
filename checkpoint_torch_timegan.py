@@ -6,7 +6,7 @@ import os
 from torch.utils.data import DataLoader, TensorDataset
 import subprocess
 #rnn_cell uses tensorflow builtins, the other three do not
-from torch_utils import extract_time, rnn_cell, random_generator, batch_generator
+from torch_utils import extract_time, rnn_cell, random_generator, batch_generator, get_device
 
 #can replace the following four functions, instead using the ones in the utils.py file
 def MinMaxScaler(data):
@@ -57,42 +57,6 @@ def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpo
     }
     torch.save(checkpoint, checkpoint_path)
     print(f"Checkpoint saved at epoch {epoch} to {checkpoint_path}")
-
-# def get_device(gpu_index=0):
-#     if torch.cuda.is_available():
-#         device = torch.device(f"cuda:{gpu_index}")
-#         print(f"Using GPU {gpu_index}: {torch.cuda.get_device_name(gpu_index)}")
-#     else:
-#         device = torch.device("cpu")
-#         print("Using CPU")
-#     return device
-
-def get_device():
-    if torch.cuda.is_available():
-        try:
-            # Get the list of GPUs
-            result = subprocess.run(['nvidia-smi', '--query-gpu=index,memory.free', '--format=csv,nounits,noheader'], stdout=subprocess.PIPE)
-            output = result.stdout.decode('utf-8')
-            
-            # Parse the output
-            gpus = output.strip().split('\n')
-            free_memory = []
-            for gpu in gpus:
-                index, memory_free = gpu.split(',')
-                free_memory.append((int(index), int(memory_free)))
-            
-            # Get the GPU with the most free memory
-            gpu_index = max(free_memory, key=lambda x: x[1])[0]
-            device = torch.device(f"cuda:{gpu_index}")
-            print(f"Using GPU {gpu_index}: {torch.cuda.get_device_name(gpu_index)}")
-        except Exception as e:
-            print(f"Error querying GPUs: {e}")
-            device = torch.device("cuda:0")
-            print(f"Defaulting to GPU 0: {torch.cuda.get_device_name(0)}")
-    else:
-        device = torch.device("cpu")
-        print("Using CPU")
-    return device
 
 class Embedder(nn.Module):
     def __init__(self, input_size, hidden_dim, num_layers):

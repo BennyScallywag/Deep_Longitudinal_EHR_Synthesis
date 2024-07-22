@@ -1,6 +1,7 @@
 from checkpoint_torch_timegan import timegan
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import os
 
 # Get the directory of the current script, make relative path to CSV data
@@ -35,4 +36,4 @@ parameters['iterations'] = 500
 parameters['batch_size'] = 128
 
 #Train TimeGAN and generate data
-generated_ckd_data_nc, e, r, s, d, g = timegan(filtered_array, parameters, checkpoint_file='TEST_ckd_checkpoint.pth')
+generated_ckd_data_nc, e, r, s, d, g = timegan(filtered_array, parameters, checkpoint_file=f'e{parameters["iterations"]}_ckd.pth')
