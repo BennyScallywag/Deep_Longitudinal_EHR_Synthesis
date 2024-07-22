@@ -29,7 +29,7 @@ def MinMaxScaler(data):
 def load_checkpoint(filename='checkpoint.pth'):
     # Define the relative path to the Checkpoints directory within the script's directory
     script_dir = os.path.dirname(__file__)
-    checkpoint_path = os.path.join(script_dir, 'Checkpoints', filename)
+    checkpoint_path = os.path.join(script_dir,'..', 'Checkpoints', filename)
 
     # Load the checkpoint if it exists
     if os.path.exists(checkpoint_path):
@@ -42,7 +42,7 @@ def load_checkpoint(filename='checkpoint.pth'):
 
 def save_checkpoint(epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
     # Create the Checkpoints directory if it does not exist
-    checkpoint_dir = os.path.join(os.path.dirname(__file__), 'Checkpoints')
+    checkpoint_dir = os.path.join(os.path.dirname(__file__),'..', 'Checkpoints')
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
     

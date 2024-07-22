@@ -8,7 +8,6 @@ from Plotting_and_Visualization import plot_original_vs_generated
 from metrics.torch_discriminative_metric import discriminative_score_metrics
 from metrics.torch_predictive_metric import predictive_score_metrics
 from metrics.torch_visualization_metric import visualization
-import os
 
 seq_len = 24
 stock_data = real_data_loading('stock', seq_len)
