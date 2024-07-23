@@ -1,30 +1,26 @@
-"""Time-series Generative Adversarial Networks (TimeGAN) Codebase.
-
-Reference: Jinsung Yoon, Daniel Jarrett, Mihaela van der Schaar, 
-"Time-series Generative Adversarial Networks," 
-Neural Information Processing Systems (NeurIPS), 2019.
-
-Paper link: https://papers.nips.cc/paper/8789-time-series-generative-adversarial-networks
-
-Last updated Date: April 24th 2020
-Code author: Jinsung Yoon (jsyoon0823@gmail.com)
-
------------------------------
-
-utils.py
-
-(1) train_test_divide: Divide train and test data for both original and synthetic data.
-(2) extract_time: Returns Maximum sequence length and each sequence length.
-(3) rnn_cell: Basic RNN Cell.
-(4) random_generator: random vector generator
-(5) batch_generator: mini-batch generator
-"""
-
 ## Necessary Packages
 import numpy as np
 import torch
 import torch.nn as nn
 import subprocess
+
+#can replace the following four functions, instead using the ones in the utils.py file
+def MinMaxScaler(data):
+    """Min-Max Normalizer.
+    Args:
+      - data: raw data
+    Returns:
+      - norm_data: normalized data
+      - min_val: minimum values (for renormalization)
+      - max_val: maximum values (for renormalization)
+    """    
+    min_val = np.min(np.min(data, axis = 0), axis = 0)
+    data = data - min_val
+      
+    max_val = np.max(np.max(data, axis = 0), axis = 0)
+    norm_data = data / (max_val + 1e-7)
+      
+    return norm_data, min_val, max_val
 
 
 def train_test_divide (data_x, data_x_hat, data_t, data_t_hat, train_rate = 0.8):
