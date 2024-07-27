@@ -10,10 +10,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-from internal_networks import Embedder, Recovery, Generator, Supervisor, Discriminator, S
+from internal_networks import Embedder, Recovery, Generator, Supervisor, Discriminator
 import os
-from torch.utils.data import DataLoader, TensorDataset
-import subprocess
+#from torch.utils.data import DataLoader, TensorDataset
+#import subprocess
 import torch_utils as tu
 
 class Timegan:
@@ -57,7 +57,7 @@ class Timegan:
         self.X, self.T = tu.batch_generator(self.ori_data, self.ori_time, self.opt.batch_size)
         self.X = torch.tensor(np.array(self.X), dtype=torch.float32).to(self.device)
         # Random vector generation
-        self.Z = tu.random_generator(self.opt.batch_size, self.para['input_dim'], self.max_seq_len, self.T)
+        self.Z = tu.random_generator(self.opt.batch_size, self.params['input_dim'], self.T, self.max_seq_len)
         self.Z = torch.tensor(np.array(self.Z), dtype=torch.float32).to(self.device)
 
         # total networks forward
@@ -75,7 +75,7 @@ class Timegan:
         self.Y_fake_e = self.discriminator(self.E_hat)
 
     def gen_synth_data(self, batch_size):
-        self.Z = tu.random_generator(batch_size, self.para['input_dim'], self.max_seq_len, self.ori_time)
+        self.Z = tu.random_generator(batch_size, self.params['input_dim'], self.max_seq_len, self.ori_time)
         self.Z = torch.tensor(self.Z, dtype=torch.float32).to(self.device)
 
         self.E_hat = self.generator(self.Z)
@@ -151,56 +151,113 @@ class Timegan:
         script_dir = os.path.dirname(__file__)
         checkpoint_path = os.path.join(script_dir, '..', 'Checkpoints', filename)
         return checkpoint_path
+    
 
-    def verify_checkpoint(self, filename='checkpoint.pth'):
+    def load_checkpoint(self, filename = 'checkpoint.pth'):
         checkpoint_path = self.get_checkpoint_path(filename)
+
         if os.path.exists(checkpoint_path):
             checkpoint = torch.load(checkpoint_path, map_location=self.device)
+            start_epoch = checkpoint['epoch']
+            self.embedder.load_state_dict(checkpoint['model_state_dict']['embedder'])
+            self.recovery.load_state_dict(checkpoint['model_state_dict']['recovery'])
+            self.generator.load_state_dict(checkpoint['model_state_dict']['generator'])
+            self.supervisor.load_state_dict(checkpoint['model_state_dict']['supervisor'])
+            self.discriminator.load_state_dict(checkpoint['model_state_dict']['discriminator'])
+            self.er_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['er_optimizer'])
+            self.generator_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['generator_optimizer'])
+            self.supervisor_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['supervisor_optimizer'])
+            self.discriminator_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['discriminator_optimizer'])
             print(f"Checkpoint loaded from {checkpoint_path}")
-            return checkpoint
         else:
-            return None
+            print('No Checkpoint under given filename, beginning training.')
+
+    # def verify_checkpoint(self, filename='checkpoint.pth'):
+    #     checkpoint_path = self.get_checkpoint_path(filename)
+    #     if os.path.exists(checkpoint_path):
+    #         checkpoint = torch.load(checkpoint_path, map_location=self.device)
+    #         print(f"Checkpoint loaded from {checkpoint_path}")
+    #         return checkpoint
+    #     else:
+    #         return None
         
     #change this to have them all (all checkpoints) in one file - just copu
     # over from the part inside of the checkpoint_timegan near the start   
-    def load_checkpoint(self, filename='checkpoint.pth'):
-        checkpoint = self.verify_checkpoint(filename)
-        if checkpoint:
-            #do this
-            # start_epoch = checkpoint['epoch']
-            # embedder.load_state_dict(checkpoint['model_state_dict']['embedder'])
-            # recovery.load_state_dict(checkpoint['model_state_dict']['recovery'])
-            # generator.load_state_dict(checkpoint['model_state_dict']['generator'])
-            # supervisor.load_state_dict(checkpoint['model_state_dict']['supervisor'])
-            # discriminator.load_state_dict(checkpoint['model_state_dict']['discriminator'])
-            # er_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['er_optimizer'])
-            # generator_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['generator_optimizer'])
-            # supervisor_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['supervisor_optimizer'])
-            # discriminator_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['discriminator_optimizer'])
-            # print(f"Resumed training from epoch {start_epoch}")        
+    # def load_checkpoint(self, filename='checkpoint.pth'):
+    #     checkpoint = self.verify_checkpoint(filename)
+    #     if checkpoint:
+    #         #do this
+    #         # start_epoch = checkpoint['epoch']
+    #         # embedder.load_state_dict(checkpoint['model_state_dict']['embedder'])
+    #         # recovery.load_state_dict(checkpoint['model_state_dict']['recovery'])
+    #         # generator.load_state_dict(checkpoint['model_state_dict']['generator'])
+    #         # supervisor.load_state_dict(checkpoint['model_state_dict']['supervisor'])
+    #         # discriminator.load_state_dict(checkpoint['model_state_dict']['discriminator'])
+    #         # er_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['er_optimizer'])
+    #         # generator_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['generator_optimizer'])
+    #         # supervisor_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['supervisor_optimizer'])
+    #         # discriminator_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['discriminator_optimizer'])
+    #         # print(f"Resumed training from epoch {start_epoch}")        
 
 
-            self.embedder.load_state_dict(torch.load(os.path.join(self.opt.networks_dir, 'embedder.pth')))
-            self.recovery.load_state_dict(torch.load(os.path.join(self.opt.networks_dir, 'recovery.pth')))
-            self.generator.load_state_dict(torch.load(os.path.join(self.opt.networks_dir, 'generator.pth')))
-            self.discriminator.load_state_dict(torch.load(os.path.join(self.opt.networks_dir, 'discriminator.pth')))
-            self.supervisor.load_state_dict(torch.load(os.path.join(self.opt.networks_dir, 'supervisor.pth')))
-            print('All network weights loaded.')
+    #         self.embedder.load_state_dict(torch.load(os.path.join(self.opt.networks_dir, 'embedder.pth')))
+    #         self.recovery.load_state_dict(torch.load(os.path.join(self.opt.networks_dir, 'recovery.pth')))
+    #         self.generator.load_state_dict(torch.load(os.path.join(self.opt.networks_dir, 'generator.pth')))
+    #         self.discriminator.load_state_dict(torch.load(os.path.join(self.opt.networks_dir, 'discriminator.pth')))
+    #         self.supervisor.load_state_dict(torch.load(os.path.join(self.opt.networks_dir, 'supervisor.pth')))
+    #         print('All network weights loaded.')
 
-    def save_checkpoint(self, epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
-        # Create the Checkpoints directory if it does not exist
+    # def save_checkpoint(self, epoch, model_dict, optimizer_dict, losses, filename='checkpoint.pth'):
+    #     # Create the Checkpoints directory if it does not exist
+    #     checkpoint_dir = self.get_checkpoint_path(filename)
+    #     if not os.path.exists(checkpoint_dir):
+    #         os.makedirs(checkpoint_dir)
+        
+    #     # Create the full checkpoint file path
+    #     checkpoint_path = os.path.join(checkpoint_dir, filename)
+        
+    #     checkpoint = {
+    #         'epoch': epoch,
+    #         'model_state_dict': {k: v.state_dict() for k, v in model_dict.items()},
+    #         'optimizer_state_dict': {k: v.state_dict() for k, v in optimizer_dict.items()},
+    #         'losses': losses
+    #     }
+    #     torch.save(checkpoint, checkpoint_path)
+    #     print(f"Checkpoint saved at epoch {epoch} to {checkpoint_path}")
+
+#Test, currently not including losses in checkpoints (they are not loaded anywhere)   
+#VERIFY THAT THIS WORKS
+    def save_checkpoint(self, epoch, filename):
+        """Saves checkpoints for each internal network.
+
+        Inputs:
+        - epoch: a dict with the current epoch number of each training phase 
+        ie. {'embedding':__, 'supervisor':__, 'joint':__}
+        - filename: The file name to save the checkpoint under"""
+
+        #Create the Checkpoints directory if it does not exist
         checkpoint_dir = self.get_checkpoint_path(filename)
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
-        
-        # Create the full checkpoint file path
+
         checkpoint_path = os.path.join(checkpoint_dir, filename)
-        
+
         checkpoint = {
             'epoch': epoch,
-            'model_state_dict': {k: v.state_dict() for k, v in model_dict.items()},
-            'optimizer_state_dict': {k: v.state_dict() for k, v in optimizer_dict.items()},
-            'losses': losses
+            'model_state_dict': {
+                'embedder': self.embedder.state_dict(),
+                'recovery': self.recovery.state_dict(),
+                'generator': self.generator.state_dict(),
+                'supervisor': self.supervisor.state_dict(),
+                'discriminator': self.discriminator.state_dict()
+            },
+            'optimizer_state_dict': {
+                'embedder_optimizer': self.optim_embedder.state_dict(),
+                'recovery_optimizer': self.optim_recovery.state_dict(),
+                'generator_optimizer': self.optim_generator.state_dict(),
+                'supervisor_optimizer': self.optim_supervisor.state_dict(),
+                'discriminator_optimizer': self.optim_discriminator.state_dict()
+            }
         }
         torch.save(checkpoint, checkpoint_path)
         print(f"Checkpoint saved at epoch {epoch} to {checkpoint_path}")

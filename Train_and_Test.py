@@ -7,9 +7,8 @@ from metrics.torch_visualization_metric import visualization
 import torch_utils as tu
 
 def train(ori_data, opt, checkpoint_file):
-
     # Model Setting
-    model = Timegan(ori_data, opt)
+    model = Timegan(ori_data, opt, checkpoint_file)
 
     # 1. Embedding network training
     print('Start Embedding Network Training')
@@ -18,8 +17,11 @@ def train(ori_data, opt, checkpoint_file):
         model.batch_forward()
         model.train_embedder()
         if i % 100 == 0:
-            print('step: ' + str(i) + '/' + str(opt.iterations) +
-                  ', e_loss: ' + str(np.round(np.sqrt(model.E_loss_T0.item()), 4)))
+            print(f'step: {str(i)}/{str(opt.iterations)}, e_loss: {str(np.round(np.sqrt(model.E_loss_T0.item()), 4))}')
+            #print('step: ' + str(i) + '/' + str(opt.iterations) +
+            #      ', e_loss: ' + str(np.round(np.sqrt(model.E_loss_T0.item()), 4)))
+            phase1_epochnum = {'embedding': i + 1, 'supervisor': 0, 'joint': 0}
+            model.save_checkpoint(phase1_epochnum, checkpoint_file)
     print('Finish Embedding Network Training')
 
     # 2. Training only with supervised loss
@@ -31,6 +33,8 @@ def train(ori_data, opt, checkpoint_file):
         if i % 100 == 0:
             print('step: ' + str(i) + '/' + str(opt.iterations) +
                   ', e_loss: ' + str(np.round(np.sqrt(model.G_loss_S.item()), 4)))
+            phase2_epochnum = {'embedding': opt.iterations, 'supervisor': i+1, 'joint': 0}
+            model.save_checkpoint(phase2_epochnum, checkpoint_file)
 
     # 3. Joint Training
     print('Start Joint Training')
@@ -55,7 +59,9 @@ def train(ori_data, opt, checkpoint_file):
                   ', g_loss_s: ' + str(np.round(np.sqrt(model.G_loss_S.item()), 4)) +
                   ', g_loss_v: ' + str(np.round(model.G_loss_V.item(), 4)) +
                   ', e_loss_t0: ' + str(np.round(np.sqrt(model.E_loss_T0.item()), 4)))
+            phase3_epochnum = {'embedding': opt.iterations, 'supervisor': opt.iterations, 'joint': i+1}
+            model.save_checkpoint(phase3_epochnum, checkpoint_file)
     print('Finish Joint Training')
 
     # Save trained networks
-    model.save_trained_networks()
+    #model.save_trained_networks()
