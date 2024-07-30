@@ -71,15 +71,16 @@ def get_clustering(ori_data, generated_data):
     - generated_data: generated synthetic data
     """  
     # Analysis sample size (for faster computation)
-    anal_sample_no = min(1000, len(ori_data))
+    anal_sample_no = min(1000, len(generated_data))
     idx = np.random.permutation(len(ori_data))[:anal_sample_no]
+    idx_gen = np.random.permutation(len(generated_data))[:anal_sample_no]
     
     # Data preprocessing
     ori_data = np.asarray(ori_data)
     generated_data = np.asarray(generated_data)  
   
     ori_data = ori_data[idx]
-    generated_data = generated_data[idx]
+    generated_data = generated_data[idx_gen]
   
     no, seq_len, dim = ori_data.shape  
   
@@ -101,7 +102,7 @@ def get_clustering(ori_data, generated_data):
     
     return pca_results, pca_hat_results, tsne_results, tsne_hat_results
 
-def plot_4pane(original_data, generated_data, filename, num_samples=5):
+def plot_4pane(original_data, generated_data, filename, num_samples=15):
     """
     Plots the original vs generated time-series data for comparison.
     
@@ -109,7 +110,7 @@ def plot_4pane(original_data, generated_data, filename, num_samples=5):
     - original_data: List of original time-series data samples.
     - generated_data: List of generated time-series data samples.
     - filename: Name to save the figure under
-    - num_samples: Number of samples to plot. Default is 5.
+    - num_samples: Number of samples to plot. Default is 15.
     """
     fig, axes = plt.subplots(2, 2, figsize=(10, 7))
     fig.suptitle('Original vs Generated Data Comparison', fontsize=16)

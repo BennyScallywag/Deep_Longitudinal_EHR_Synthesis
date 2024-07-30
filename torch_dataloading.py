@@ -88,12 +88,12 @@ def real_data_loading (data_name, seq_len):
   Returns:
     - data: preprocessed data.
   """  
-  assert data_name in ['stock','energy']
+  assert data_name in ['stocks','energy']
   directory = os.path.dirname(__file__)
   stockpath = os.path.join(directory, 'data', 'stock_data.csv')
   energypath = os.path.join(directory, 'data', 'energy_data.csv')
   
-  if data_name == 'stock':
+  if data_name == 'stocks':
     ori_data = np.loadtxt(stockpath, delimiter = ",",skiprows = 1)
   elif data_name == 'energy':
     ori_data = np.loadtxt(energypath, delimiter = ",",skiprows = 1)

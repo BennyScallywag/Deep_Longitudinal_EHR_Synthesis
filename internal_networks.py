@@ -18,6 +18,7 @@ class Recovery(nn.Module):
         super(Recovery, self).__init__()
         self.rnn = nn.GRU(hidden_dim, hidden_dim, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_dim, output_size)
+        #also try rnn(hidden --> output) then linear(output-->output)
 
     def forward(self, h):
         x_tilde, _ = self.rnn(h)
@@ -57,9 +58,11 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.rnn = nn.GRU(hidden_dim, hidden_dim, num_layers, batch_first=True)
         #self.fc = nn.Linear(hidden_dim, 1)
-        self.fc = nn.Linear(hidden_dim, hidden_dim)
+        self.fc = nn.Linear(hidden_dim, hidden_dim)        #temporarily changed back to normal version
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, h):
         y_hat, _ = self.rnn(h)
         y_hat = self.fc(y_hat)
+        y_hat = self.sigmoid(y_hat)
         return y_hat
