@@ -72,7 +72,7 @@ def get_clustering(ori_data, generated_data):
     """  
     # Analysis sample size (for faster computation)
     anal_sample_no = min(1000, len(generated_data), len(ori_data))
-    idx = np.random.permutation(min(len(ori_data),len(generated_data)))[:anal_sample_no]
+    idx = np.random.permutation(anal_sample_no)
     #idx_gen = np.random.permutation(len(generated_data))[:anal_sample_no]
     
     # Data preprocessing
@@ -159,9 +159,10 @@ def plot_4pane(original_data, generated_data, filename, num_samples=15):
         os.makedirs(plot_dir)
     
     # Ensure the filename has the correct extensions
-    plot_path = os.path.join(plot_dir, filename)+'.pkl'
+    plot_path = os.path.join(plot_dir, filename+'.pdf')
+    plot_path_pkl = os.path.join(plot_dir, filename+'.pkl')
 
-    with open(plot_path, 'wb') as f:
+    with open(plot_path_pkl, 'wb') as f:
         pickle.dump(fig, f)
 
     plt.savefig(plot_path, format='pdf')
