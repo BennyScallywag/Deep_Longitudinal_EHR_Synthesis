@@ -22,7 +22,7 @@ def train(ori_data, opt, checkpoint_file):
         if (i) % 100 == 0:
             print(f'step: {str(i)}/{str(opt.iterations)}, e_loss: {str(np.round(np.sqrt(model.E_loss_T0.item()), 4))}')
         
-        if (i+1) % 100 == 0:
+        if (i+1) % 1000 == 0 or i==(opt.iterations-1):
             #print(f'step: {str(i+1)}/{str(opt.iterations)}, e_loss: {str(np.round(np.sqrt(model.E_loss_T0.item()), 4))}')
             phase1_epochnum = {'embedding': i+1, 'supervisor': 0, 'joint': 0}
             model.save_checkpoint(phase1_epochnum, checkpoint_file)
@@ -37,7 +37,7 @@ def train(ori_data, opt, checkpoint_file):
         if (i) % 100 == 0:
             print(f'step: {str(i)}/{str(opt.iterations)},  g_loss_s: {str(np.round(np.sqrt(model.G_loss_S.item()), 4))}')
         
-        if (i+1) % 100 == 0:
+        if (i+1) % 1000 == 0 or i==(opt.iterations-1):
             #print(f'step: {str(i+1)}/{str(opt.iterations)},  g_loss_s: {str(np.round(np.sqrt(model.G_loss_S.item()), 4))}')
             phase2_epochnum = {'embedding': opt.iterations, 'supervisor': i+1, 'joint': 0}
             model.save_checkpoint(phase2_epochnum, checkpoint_file)
@@ -67,7 +67,7 @@ def train(ori_data, opt, checkpoint_file):
                   ', g_loss_v: ' + str(np.round(model.G_loss_V.item(), 4)) +
                   ', e_loss_t0: ' + str(np.round(np.sqrt(model.E_loss_T0.item()), 4)))
 
-        if (i+1) % 100 == 0:
+        if (i+1) % 1000 == 0 or i==(opt.iterations-1):
             # print('step: ' + str(i+1) + '/' + str(opt.iterations) +
             #       ', d_loss: ' + str(np.round(model.D_loss.item(), 4)) +
             #       ', g_loss_u: ' + str(np.round(model.G_loss_U.item(), 4)) +

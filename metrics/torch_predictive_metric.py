@@ -126,6 +126,9 @@ def predictive_score_metrics(ori_data, generated_data):
         pred_Y_curr = model(X_mb, T_mb)
     
     predictive_score = torch.mean(torch.abs(Y_mb - pred_Y_curr))
+
+    #new
+    predictive_score = predictive_score.cpu().numpy()
     
     #predictive_score = MAE_temp / no
     

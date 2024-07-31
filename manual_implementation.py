@@ -23,13 +23,13 @@ class Options:
 
 # ----------------CHANGE THESE (INPUTS)------------------
 opt = Options(
-    epochs=200,              #number of epochs
+    epochs=400,              #number of epochs
     sine_no=1000,            #number of training time-series's if using the 'sines' data
     hidden_dim=24,           #dimension of the latent space
     num_layer=3,             #number of hidden layers in each network
     lr=0.001,                #learning rate (shouldnt make much of a difference)
     seq_len = 24,            #sequence length
-    data_name = 'ckd',     #which dataset to use, options are 'sines', 'stocks', and 'ckd'
+    data_name = 'stocks',     #which dataset to use, options are 'sines', 'stocks', and 'ckd'
     gamma = 1,               #relative weight of generator loss to discriminator loss during training
     batch_size = 128,
     filename_prefix = ''     #IMPORTANT: prefix to add to checkpoint filename, this ensures that you dont overwrite an existing checkpoint if using the same parameters
