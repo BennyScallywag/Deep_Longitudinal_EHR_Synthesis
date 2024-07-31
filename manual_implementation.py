@@ -23,7 +23,7 @@ class Options:
 
 # ----------------CHANGE THESE (INPUTS)------------------
 opt = Options(
-    epochs=400,              #number of epochs
+    epochs=100,              #number of epochs
     sine_no=1000,            #number of training time-series's if using the 'sines' data
     hidden_dim=24,           #dimension of the latent space
     num_layer=3,             #number of hidden layers in each network
@@ -42,7 +42,6 @@ if __name__ == "__main__":
     # Load your data
     if opt.data_name in ['stocks', 'energy']:
         ori_data = real_data_loading(opt.data_name, opt.seq_len)
-        #print(ori_data)
     elif opt.data_name == 'sines':
         # Set number of samples and its dimensions
         ori_data = sine_data_generation(opt.sine_no, opt.seq_len, 5)
@@ -64,6 +63,7 @@ if __name__ == "__main__":
         #(currently only considering full sequences)
         mask = np.all(ckd_sequences_array[:, :, -1] != 0, axis=1)            #middle index is sequence number?
         ori_data = ckd_sequences_array[mask]
-
+    print(f'{opt.data_name} dataset is ready.')
+    
     train(ori_data, opt, checkpoint_filename)
     test(ori_data, opt, checkpoint_filename)

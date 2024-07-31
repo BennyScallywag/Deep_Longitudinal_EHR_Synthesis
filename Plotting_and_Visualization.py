@@ -55,8 +55,8 @@ def plot_original_vs_generated(original_data, generated_data, filename, num_samp
         os.makedirs(plot_dir)
     
     # Create file path and save pickle data for re-obtaining plot later
-    plot_path = os.path.join(plot_dir, filename)
-    with open(plot_path + '.pkl', 'wb') as f:
+    plot_path = os.path.join(plot_dir, filename)+'.pkl'
+    with open(plot_path, 'wb') as f:
         pickle.dump(fig, f)
 
     plt.savefig(plot_path, format='pdf')
@@ -71,16 +71,16 @@ def get_clustering(ori_data, generated_data):
     - generated_data: generated synthetic data
     """  
     # Analysis sample size (for faster computation)
-    anal_sample_no = min(1000, len(generated_data))
-    idx = np.random.permutation(len(ori_data))[:anal_sample_no]
-    idx_gen = np.random.permutation(len(generated_data))[:anal_sample_no]
+    anal_sample_no = min(1000, len(generated_data), len(ori_data))
+    idx = np.random.permutation(min(len(ori_data),len(generated_data)))[:anal_sample_no]
+    #idx_gen = np.random.permutation(len(generated_data))[:anal_sample_no]
     
     # Data preprocessing
     ori_data = np.asarray(ori_data)
     generated_data = np.asarray(generated_data)  
   
     ori_data = ori_data[idx]
-    generated_data = generated_data[idx_gen]
+    generated_data = generated_data[idx]
   
     no, seq_len, dim = ori_data.shape  
   
@@ -112,6 +112,7 @@ def plot_4pane(original_data, generated_data, filename, num_samples=15):
     - filename: Name to save the figure under
     - num_samples: Number of samples to plot. Default is 15.
     """
+    num_samples = min(num_samples, len(original_data), len(generated_data))
     fig, axes = plt.subplots(2, 2, figsize=(10, 7))
     fig.suptitle('Original vs Generated Data Comparison', fontsize=16)
     
@@ -158,7 +159,7 @@ def plot_4pane(original_data, generated_data, filename, num_samples=15):
         os.makedirs(plot_dir)
     
     # Ensure the filename has the correct extensions
-    plot_path = os.path.join(plot_dir, filename)
+    plot_path = os.path.join(plot_dir, filename)+'.pkl'
 
     with open(plot_path, 'wb') as f:
         pickle.dump(fig, f)

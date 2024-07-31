@@ -194,8 +194,9 @@ class Timegan:
         filename = filename + '.pth'
         checkpoint_path = self.get_checkpoint_path(filename)
         #checkpoint_dir = os.path.join(checkpoint_path, '..')
-        #if not os.path.exists(checkpoint_dir):
-        #    os.makedirs(checkpoint_dir)
+        checkpt_dir = os.path.join(os.path.dirname(__file__),'..','Checkpoints')
+        if not os.path.exists(checkpt_dir):
+            os.makedirs(checkpt_dir)
 
         #checkpoint_path = os.path.join(checkpoint_dir, filename)
 
