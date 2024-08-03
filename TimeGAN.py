@@ -78,6 +78,10 @@ class Timegan:
         self.Y_fake = self.discriminator(self.H_hat)
         self.Y_fake_e = self.discriminator(self.E_hat)
 
+        self.noisyY_real = self.discriminator(self.H + torch.normal(mean=0, std=0.2, size=self.H.size()).to(self.device))
+        self.noisyY_fake = self.discriminator(self.H_hat + torch.normal(mean=0, std=0.2, size=self.H_hat.size()).to(self.device))
+        self.noisyY_fake_e = self.discriminator(self.E_hat + torch.normal(mean=0, std=0.2, size=self.E_hat.size()).to(self.device))
+
     def gen_synth_data(self, batch_size):
         self.Z = tu.random_generator(batch_size, self.params['input_dim'], self.ori_time, self.max_seq_len)
         self.Z = torch.tensor(self.Z, dtype=torch.float32).to(self.device)
@@ -85,6 +89,8 @@ class Timegan:
         self.E_hat = self.generator(self.Z)
         self.H_hat = self.supervisor(self.E_hat)
         self.X_hat = self.recovery(self.H_hat)
+
+        self.X_hat = np.array([(data * self.max_val) + self.min_val for data in self.X_hat])
 
         return self.X_hat
     
@@ -97,7 +103,7 @@ class Timegan:
         self.E_loss0 = 10 * torch.sqrt(self.E_loss_T0)
 
         self.G_loss_S = self.MSELoss(self.H[:, 1:, :], self.H_hat_supervise[:, :-1, :])
-        self.E_loss = self.E_loss0 + 0.1 * self.G_loss_S
+        self.E_loss = self.E_loss0 #+ 0.1 * self.G_loss_S
         self.E_loss.backward()
         self.optim_embedder.step()
         self.optim_recovery.step()
@@ -119,9 +125,20 @@ class Timegan:
         self.optim_supervisor.zero_grad()
         self.G_loss_U = self.BCELoss(self.Y_fake, torch.ones_like(self.Y_fake))
         self.G_loss_U_e = self.BCELoss(self.Y_fake_e, torch.ones_like(self.Y_fake_e))
-        self.G_loss_V1 = torch.mean(torch.abs(torch.sqrt(torch.std(self.X_hat, [0])[1] + 1e-6) - torch.sqrt(
-            torch.std(self.X, [0])[1] + 1e-6)))
-        self.G_loss_V2 = torch.mean(torch.abs((torch.mean(self.X_hat, [0])) - (torch.mean(self.X, [0]))))
+
+        #testing
+        #self.G_loss_V1 = torch.mean(torch.abs(torch.sqrt(torch.std(self.X_hat, [0])[1] + 1e-6) - torch.sqrt(
+        #    torch.std(self.X, [0])[1] + 1e-6)))
+        #self.G_loss_V2 = torch.mean(torch.abs((torch.mean(self.X_hat, [0])) - (torch.mean(self.X, [0]))))
+        mean_X = torch.mean(self.X, dim=0)
+        var_X = torch.var(self.X, dim=0, unbiased=False)
+        mean_X_hat = torch.mean(self.X_hat, dim=0)
+        var_X_hat = torch.var(self.X_hat, dim=0, unbiased=False)
+        self.G_loss_V1 = torch.mean(torch.abs(torch.sqrt(var_X_hat + 1e-6) - torch.sqrt(var_X + 1e-6)))
+        self.G_loss_V2 = torch.mean(torch.abs(mean_X_hat - mean_X))
+        # end test of olf regiment
+
+
         self.G_loss_V = self.G_loss_V1 + self.G_loss_V2
         self.G_loss_S = self.MSELoss(self.H_hat_supervise[:, :-1, :], self.H[:, 1:, :])
         self.G_loss = self.G_loss_U + \
@@ -139,9 +156,13 @@ class Timegan:
         # D_solver
         self.discriminator.train()
         self.optim_discriminator.zero_grad()
-        self.D_loss_real = self.BCELoss(self.Y_real, torch.ones_like(self.Y_real))
-        self.D_loss_fake = self.BCELoss(self.Y_fake, torch.zeros_like(self.Y_fake))
-        self.D_loss_fake_e = self.BCELoss(self.Y_fake_e, torch.zeros_like(self.Y_fake_e))
+        
+        self.D_loss_real = self.BCELoss(self.noisyY_real, torch.ones_like(self.Y_real))
+        self.D_loss_fake = self.BCELoss(self.noisyY_fake, torch.zeros_like(self.Y_fake))
+        self.D_loss_fake_e = self.BCELoss(self.noisyY_fake_e, torch.zeros_like(self.Y_fake_e))
+        # self.D_loss_real = self.BCELoss(self.Y_real, torch.ones_like(self.Y_real))
+        # self.D_loss_fake = self.BCELoss(self.Y_fake, torch.zeros_like(self.Y_fake))
+        # self.D_loss_fake_e = self.BCELoss(self.Y_fake_e, torch.zeros_like(self.Y_fake_e))
         self.D_loss = self.D_loss_real + \
                       self.D_loss_fake + \
                       self.opt.gamma * self.D_loss_fake_e

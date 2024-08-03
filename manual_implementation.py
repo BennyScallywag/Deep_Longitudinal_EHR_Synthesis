@@ -1,5 +1,5 @@
 import numpy as np
-from TimeGAN import Timegan
+from timegan import Timegan
 from Train_and_Test import train, test
 from torch_dataloading import real_data_loading, sine_data_generation
 import os

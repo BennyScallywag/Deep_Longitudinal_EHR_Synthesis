@@ -97,6 +97,6 @@ if __name__ == '__main__':
 
     # Call main function
     opt = parser.parse_args()
-    checkpoint_filename = f'test2_{str(opt.filename_additions)}_e{opt.iterations}_{opt.data_name}'
+    checkpoint_filename = f'{str(opt.filename_additions)}e{opt.iterations}_hdim{opt.hidden_dim}_{opt.data_name}'
 
     main(opt, checkpoint_filename)

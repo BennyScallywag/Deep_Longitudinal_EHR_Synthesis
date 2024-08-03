@@ -6,13 +6,13 @@ import subprocess
 
 #can replace the following four functions, instead using the ones in the utils.py file
 def MinMaxScaler(data):
-    """Min-Max Normalizer.
+    """Apply Min-Max normalization to the given data.
     Args:
-      - data: raw data
+      - data (np.ndarray): raw data
     Returns:
-      - norm_data: normalized data
-      - min_val: minimum values (for renormalization)
-      - max_val: maximum values (for renormalization)
+      - norm_data (np.ndarray): normalized data
+      - min_val (np.ndarray): minimum values (for renormalization)
+      - max_val (np.ndarray): maximum values (for renormalization)
     """    
     min_val = np.min(np.min(data, axis = 0), axis = 0)
     data = data - min_val
@@ -24,15 +24,20 @@ def MinMaxScaler(data):
 
 
 def train_test_divide (data_x, data_x_hat, data_t, data_t_hat, train_rate = 0.8):
-  """Divide train and test data for both original and synthetic data.
-  
-  Args:
-    - data_x: original data
-    - data_x_hat: generated data
-    - data_t: original time
-    - data_t_hat: generated time
-    - train_rate: ratio of training data from the original data
-  """
+  def train_test_divide(data_x: np.ndarray, data_x_hat: np.ndarray, data_t: np.ndarray, data_t_hat: np.ndarray, train_rate: float = 0.8) -> tuple:
+      """
+      Divide train and test data for both original and synthetic data.
+
+      Args:
+        - data_x (np.ndarray): original data
+        - data_x_hat (np.ndarray): generated data
+        - data_t (np.ndarray): original time
+        - data_t_hat (np.ndarray): generated time
+        - train_rate (float): ratio of training data from the original data
+
+      Returns:
+        - tuple (each np.ndarray): train_x, train_x_hat, test_x, test_x_hat, train_t, train_t_hat, test_t, test_t_hat
+      """
   # Divide train/test index (original data)
   no = len(data_x)
   idx = np.random.permutation(no)
@@ -62,11 +67,11 @@ def extract_time (data):
   """Returns Maximum sequence length and each sequence length.
   
   Args:
-    - data: original data
+    - data (list of arrays): original data
     
   Returns:
-    - time: extracted time information
-    - max_seq_len: maximum sequence length
+    - time (list): extracted time information (length of each sequence in the dataset)
+    - max_seq_len (int): maximum sequence length
   """
   time = list()
   max_seq_len = 0
@@ -80,11 +85,11 @@ def rnn_cell(module_name, hidden_dim):
     """Basic RNN Cell.
 
     Args:
-        - module_name: 'gru', 'lstm', or 'lstmLN'
-        - hidden_dim: dimension of the hidden state
+      module_name (str): Name of the RNN module. Options are 'gru', 'lstm', or 'lstmLN'.
+      hidden_dim (int): Dimension of the hidden state.
     
     Returns:
-        - rnn_cell: RNN Cell
+      rnn_cell (nn.Module): RNN Cell.
     """
     assert module_name in ['gru', 'lstm', 'lstmLN'], "module_name must be 'gru', 'lstm', or 'lstmLN'"
     
@@ -137,7 +142,17 @@ def random_generator (batch_size, z_dim, T_mb, max_seq_len):
   return np.array(Z_mb)
 
 def batch_generator(data, time, batch_size):
-    """Generate batches of data."""
+    """Generate batches of data.
+    
+    Args:
+      - data: data to be batched
+      - time: time information for the data
+      - batch_size: size of the batch
+      
+    Returns:
+      - batch_data: batched data
+      - batch_time: batched time information
+    """
     idx = np.random.permutation(len(data))
     idx = idx[:batch_size]
     batch_data = [torch.tensor(data[i], dtype=torch.float32) for i in idx]
@@ -146,6 +161,10 @@ def batch_generator(data, time, batch_size):
     return batch_data, batch_time
 
 def get_device():
+    """Get the device (CPU or GPU) that PyTorch will use.
+    
+    Returns:
+        - device: PyTorch device object"""
     if torch.cuda.is_available():
         try:
             # Get the list of GPUs
