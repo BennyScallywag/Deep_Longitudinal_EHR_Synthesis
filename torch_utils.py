@@ -2,7 +2,9 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import pandas as pd
 import subprocess
+import os
 
 #can replace the following four functions, instead using the ones in the utils.py file
 def MinMaxScaler(data):
@@ -159,6 +161,48 @@ def batch_generator(data, time, batch_size):
     batch_time = [time[i] for i in idx]
     batch_data = nn.utils.rnn.pad_sequence(batch_data, batch_first=True)
     return batch_data, batch_time
+
+def save_results_to_excel(filename, metric_results, opt):
+    """
+    Save the metric results to an Excel file.
+
+    Args:
+        filename (str): The file path for saving the Excel file.
+        metric_results (dict): The dictionary containing the metric results.
+    """
+    # Define the excel file path
+    excel_file = "results.xlsx"
+    script_dir = os.path.dirname(__file__)
+    results_dir = os.path.join(script_dir, '..', 'Excel Results')
+    excel_path = os.path.join(results_dir, excel_file)
+    
+    # Ensure the directory exists
+    os.makedirs(results_dir, exist_ok=True)
+    
+    sine_no = opt.sine_no if opt.data_name == 'sines' else None
+    # Create a dataframe from the metric results
+    df = pd.DataFrame({
+        "Filename": [filename],
+        "Discriminative Score": [metric_results['discriminative']],
+        "Predictive Score": [metric_results['predictive']],
+        "Data Name": [opt.data_name],
+        "Sequence Length": [opt.seq_len],
+        "Iterations": [opt.iterations],
+        "Sinusoid Samples": [sine_no],
+    })
+    
+    # Append to the existing Excel file if it exists, otherwise create a new one
+    try:
+        # Try to load existing data
+        existing_df = pd.read_excel(excel_path)
+        # Append new data
+        df = pd.concat([existing_df, df], ignore_index=True)
+    except FileNotFoundError:
+        # If file does not exist, it will be created
+        pass
+    
+    # Save the dataframe to the excel file
+    df.to_excel(excel_path, index=False)
 
 def get_device():
     """Get the device (CPU or GPU) that PyTorch will use.

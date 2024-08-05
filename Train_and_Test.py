@@ -93,11 +93,13 @@ def test(ori_data, opt, filename):
     model = Timegan(ori_data, opt, filename)
 
     # Synthetic data generation
-    synth_size = opt.synth_size if opt.synth_size != 0 else len(ori_data)
+    #synth_size = opt.synth_size if opt.synth_size != 0 else len(ori_data)
+    synth_size = min(opt.synth_size, len(ori_data))
     generated_data = model.gen_synth_data(synth_size)
     generated_data = generated_data.cpu().detach().numpy()
     gen_data = list()
     gen_data = [generated_data[i, :opt.seq_len, :] for i in range(synth_size)]
+    gen_data = np.array([(data * model.max_val) + model.min_val for data in gen_data])
     print('Finish Synthetic Data Generation')
 
     # Performance metrics
@@ -123,6 +125,8 @@ def test(ori_data, opt, filename):
     metric_results['predictive'] = np.mean(predictive_score)
     print('Finish predictive_score_metrics compute')
     
+    tu.save_results_to_excel(f'{filename}', metric_results, opt)
+
     print(metric_results)
     # 3. Visualization (PCA and tSNE)
     pv.plot_4pane(ori_data, gen_data, filename=f'{filename}.pdf')

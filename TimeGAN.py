@@ -90,7 +90,7 @@ class Timegan:
         self.H_hat = self.supervisor(self.E_hat)
         self.X_hat = self.recovery(self.H_hat)
 
-        self.X_hat = np.array([(data * self.max_val) + self.min_val for data in self.X_hat])
+        #self.X_hat = np.array([(data * self.max_val) + self.min_val for data in self.X_hat])
 
         return self.X_hat
     

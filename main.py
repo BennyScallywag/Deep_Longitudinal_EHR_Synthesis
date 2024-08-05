@@ -97,6 +97,7 @@ if __name__ == '__main__':
 
     # Call main function
     opt = parser.parse_args()
-    checkpoint_filename = f'{str(opt.filename_additions)}e{opt.iterations}_hdim{opt.hidden_dim}_{opt.data_name}'
+    no = f'_no{opt.sine_no}' if opt.data_name == 'sines' else ''
+    checkpoint_filename = f'{str(opt.filename_additions)}e{opt.iterations}{no}_{opt.data_name}'
 
     main(opt, checkpoint_filename)
