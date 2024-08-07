@@ -32,6 +32,9 @@ class Timegan:
         self.params['hidden_dim'] = opt.hidden_dim
         self.params['num_layers'] = opt.num_layer
 
+        #If using Noise, define standard deviation
+        self.noise_sd = opt.noise_sd
+
         #self.filename = f""#Save the filename somewhere else then use it as an input?s
         filename = checkpoint_file
 
@@ -78,9 +81,9 @@ class Timegan:
         self.Y_fake = self.discriminator(self.H_hat)
         self.Y_fake_e = self.discriminator(self.E_hat)
 
-        self.noisyY_real = self.discriminator(self.H + torch.normal(mean=0, std=0.2, size=self.H.size()).to(self.device))
-        self.noisyY_fake = self.discriminator(self.H_hat + torch.normal(mean=0, std=0.2, size=self.H_hat.size()).to(self.device))
-        self.noisyY_fake_e = self.discriminator(self.E_hat + torch.normal(mean=0, std=0.2, size=self.E_hat.size()).to(self.device))
+        self.noisyY_real = self.discriminator(self.H + torch.normal(mean=0, std=self.noise_sd, size=self.H.size()).to(self.device))
+        self.noisyY_fake = self.discriminator(self.H_hat + torch.normal(mean=0, std=self.noise_sd, size=self.H_hat.size()).to(self.device))
+        self.noisyY_fake_e = self.discriminator(self.E_hat + torch.normal(mean=0, std=self.noise_sd, size=self.E_hat.size()).to(self.device))
 
     def gen_synth_data(self, batch_size):
         self.Z = tu.random_generator(batch_size, self.params['input_dim'], self.ori_time, self.max_seq_len)

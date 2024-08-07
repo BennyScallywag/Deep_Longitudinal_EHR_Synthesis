@@ -3,6 +3,11 @@ import torch.nn as nn
 from torch_utils import get_device, extract_time
 import numpy as np
 
+'''I might be wrong here, but I think it works like this:
+the oneclass NN is just one big embedding network which converts the input data to a latent space. 
+This is helpful for time series because metrics that were not super relevant in the original temporaldistribution space 
+become more relevant if we look at the latent space as a static space - in this sence, the transformation to latent space
+allows us to investigate temporal data distributions as if they were static. Then, we can perform the usual metrics.'''
 class OneClassNN(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
         super(OneClassNN, self).__init__()

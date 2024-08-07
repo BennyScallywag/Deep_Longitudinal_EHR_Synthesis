@@ -6,6 +6,8 @@ from metrics.torch_predictive_metric import predictive_score_metrics
 #from metrics.torch_visualization_metric import visualization
 import Plotting_and_Visualization as pv
 import torch_utils as tu
+import pandas as pd
+import os
 
 def train(ori_data, opt, checkpoint_file):
     """
@@ -124,9 +126,33 @@ def test(ori_data, opt, filename):
         predictive_score.append(temp_predict)
     metric_results['predictive'] = np.mean(predictive_score)
     print('Finish predictive_score_metrics compute')
+
+    # Save first 5 entries of generated data to an Excel file
+    if opt.sample_to_excel:
+        first_five_entries = gen_data[:5]
+        m, n, p = first_five_entries.shape
+        reshaped_data = first_five_entries.reshape(m * n, p)
+        
+        # Create a DataFrame and add a column to indicate the series ID
+        column_names = ['eGFR', 'age', 'BMI', 'Hb', 'Alb', 'Cr', 'UPCR'] if opt.data_name == 'ckd' else [f'Feature_{i+1}' for i in range(p)]
+        df = pd.DataFrame(reshaped_data, columns=column_names)
+        df['Series_ID'] = np.repeat(np.arange(1, m + 1), n)
+        
+        # Reorder the columns to place 'Series_ID' at the beginning
+        df = df[['Series_ID'] + column_names]
+
+        excel_file = f'{filename}_first_five_entries.xlsx'
+        script_dir = os.path.dirname(__file__)
+        results_dir = os.path.join(script_dir, '..', 'Excel Results')
+        excel_path = os.path.join(results_dir, excel_file)
+        
+        # Save to Excel
+        df.to_excel(excel_path, index=False)
+        print('First 5 entries of generated data saved to Excel')
     
     tu.save_results_to_excel(f'{filename}', metric_results, opt)
 
     print(metric_results)
+    
     # 3. Visualization (PCA and tSNE)
     pv.plot_4pane(ori_data, gen_data, filename=f'{filename}.pdf')

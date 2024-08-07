@@ -82,9 +82,10 @@ if __name__ == '__main__':
     parser.add_argument('--iterations', type=int, default=400, help='Training iterations')    #changed from 50k
     parser.add_argument('--print_times', type=int, default=10, help='Print times when Training')
     parser.add_argument('--batch_size', type=int, default=128, help='the number of samples in mini-batch')
-    parser.add_argument('--synth_size', type=int, default=100, help='the number of samples in synthetic data, '
+    parser.add_argument('--synth_size', type=int, default=500, help='the number of samples in synthetic data, '
                                                                   '0--len(ori_data)')
-    parser.add_argument('--metric_iteration', type=int, default=1, help='iterations of the metric computation')
+    parser.add_argument('--metric_iteration', type=int, default=5, help='iterations of the metric computation')
+    parser.add_argument('--noise_sd', type=float, default=0.2, help='Standard deviation of discriminator noise injection')
     # Save and Load
     parser.add_argument('--data_dir', type=str, default="./data", help='path to stock and energy data')   #can remove?
     parser.add_argument('--networks_dir', type=str, default="./trained_networks", help='path to checkpoint')    #can remove?
@@ -93,11 +94,11 @@ if __name__ == '__main__':
     # Model running parameters
     parser.add_argument('--is_test', type=bool, default=False, help='iterations of the metric computation')
     parser.add_argument('--only_visualize_metric', type=bool, default=False, help='only compute visualization metrics')
-    parser.add_argument('--load_checkpoint', type=bool, default=False, help='load pretrain networks')
+    parser.add_argument('--sample_to_excel', type=bool, default=False, help='whether to save a sample of the generated data to an excel file')
 
     # Call main function
     opt = parser.parse_args()
     no = f'_no{opt.sine_no}' if opt.data_name == 'sines' else ''
-    checkpoint_filename = f'{str(opt.filename_additions)}e{opt.iterations}{no}_{opt.data_name}'
+    checkpoint_filename = f'{str(opt.filename_additions)}e{opt.iterations}{no}_noise{opt.noise_sd}_{opt.data_name}'
 
     main(opt, checkpoint_filename)
