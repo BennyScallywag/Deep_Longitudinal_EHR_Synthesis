@@ -1,11 +1,13 @@
+import opacus.layers
 import torch
 import torch.nn as nn
 import opacus
-
+#opacus.layers.dp_rnn.DPGRU
 class Embedder(nn.Module):
     def __init__(self, input_size, hidden_dim, num_layers):
         super(Embedder, self).__init__()
         self.rnn = nn.GRU(input_size, hidden_dim, num_layers, batch_first=True)
+        #self.rnn = opacus.layers.dp_rnn.DPGRU(input_size, hidden_dim, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_dim, hidden_dim)
 
     def forward(self, x):
@@ -31,6 +33,7 @@ class Generator(nn.Module):
     def __init__(self, z_dim, hidden_dim, num_layers):
         super(Generator, self).__init__()
         self.rnn = nn.GRU(z_dim, hidden_dim, num_layers, batch_first=True)
+        #self.rnn = opacus.layers.dp_rnn.DPGRU(z_dim, hidden_dim, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_dim, hidden_dim)
 
     def forward(self, z):
@@ -54,27 +57,33 @@ class Supervisor(nn.Module):
 #Dont need to use padded sequence since inputs are always in latent space (same dimension)
 #Note: IN THIS IMPLEMENTATION THE DISCRIM PRODUCES A SCORE FOR EACH TIME STEP IN THE SEQUENCE
 #i.e. if i pass in 10 sequences each of length 24, the output of the discrim will have shape (10, 24)
+# class Discriminator(nn.Module):
+#     def __init__(self, hidden_dim, num_layers):
+#         super(Discriminator, self).__init__()
+#         #self.rnn = nn.GRU(hidden_dim, hidden_dim, num_layers, batch_first=True)
+#         self.rnn = opacus.layers.dp_rnn.DPLSTM(hidden_dim, hidden_dim, num_layers, batch_first=True)
+        
+#         #self.fc = nn.Linear(hidden_dim, 1)
+#         #self.fc = nn.Linear(hidden_dim, hidden_dim)        #temporarily changed back to normal version
+#         self.sigmoid = nn.Sigmoid()
+
+#     def forward(self, h):
+#         y_hat, _ = self.rnn(h)
+#         #y_hat = self.fc(y_hat)
+#         y_hat = self.sigmoid(y_hat)
+#         return y_hat
+
 class Discriminator(nn.Module):
     def __init__(self, hidden_dim, num_layers):
         super(Discriminator, self).__init__()
-        self.rnn = nn.GRU(hidden_dim, hidden_dim, num_layers, batch_first=True)
-        #self.fc = nn.Linear(hidden_dim, 1)
-        self.fc = nn.Linear(hidden_dim, hidden_dim)        #temporarily changed back to normal version
-        self.sigmoid = nn.Sigmoid()
 
-    def forward(self, h):
-        y_hat, _ = self.rnn(h)
-        y_hat = self.fc(y_hat)
-        y_hat = self.sigmoid(y_hat)
-        return y_hat
-    
-
-class DP_Discriminator(nn.Module):
-    def __init__(self, hidden_dim, num_layers):
-        super(DP_Discriminator, self).__init__()
-        # Initialize the LSTM layer and FC layer, sigmoid activation
+        # Initialize the LSTM layer
         self.lstm = opacus.layers.DPGRU(hidden_dim, hidden_dim, num_layers, batch_first=True)
+        
+        # Final fully connected layer
         self.fc = nn.Linear(hidden_dim, 1)
+        
+        # Sigmoid activation for binary classification
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):

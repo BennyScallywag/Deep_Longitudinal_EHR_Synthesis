@@ -1,5 +1,4 @@
 import numpy as np
-#from timegan import Timegan
 from DP_timegan import Timegan
 import matplotlib.pyplot as plt
 from metrics.torch_discriminative_metric import discriminative_score_metrics
@@ -8,9 +7,12 @@ from metrics.torch_predictive_metric import predictive_score_metrics
 import Plotting_and_Visualization as pv
 import torch_utils as tu
 import pandas as pd
+# import torch
+# from opacus import PrivacyEngine
+# from torch.utils.data import DataLoader
 import os
 
-def train(ori_data, opt, checkpoint_file):
+def dp_train(ori_data, opt, checkpoint_file):
     """
     Train the TimeGAN model using a three-phase training process: 
     embedding network training, supervised loss training, and joint training.
@@ -34,9 +36,6 @@ def train(ori_data, opt, checkpoint_file):
         if (i+1) % 1000 == 0 or i==(opt.iterations-1):
             phase1_epochnum = {'embedding': i+1, 'supervisor': 0, 'joint': 0}
             model.save_checkpoint(phase1_epochnum, checkpoint_file)
-
-            #epsilon, best_alpha = model.privacy_engine.accountant.get_privacy_spent(delta=1e-5)
-            #print(f"(ε = {epsilon:.2f}, δ = {1e-5}) for α = {best_alpha}")
     print('Finish Embedding Network Training')
 
     # 2. Training only with supervised loss
@@ -53,45 +52,37 @@ def train(ori_data, opt, checkpoint_file):
             model.save_checkpoint(phase2_epochnum, checkpoint_file)
     print('Finish Supervised-Only Training')
 
-    # 3. Joint Training
+    #model.reset_gradients()
+    model.reinitialize_discriminator()
+    model.reinitialize_privacy_engine()
+    #3. Joint Training
     print('Start Joint Training')
+    model.discriminator.train()
+    model.generator.train()
     for i in range(model.start_epoch['joint'], opt.iterations):
-        # Generator training (twice more than discriminator training)
-        # model.gen_batch()
-        # model.batch_forward()
-        # model.train_discriminator()
-        for kk in range(2):
-            model.gen_batch()
-            model.batch_forward()
-            model.train_generator(join_train=True)
-            model.batch_forward()
-            model.train_embedder(join_train=True)
-            #model.train_discriminator()
-        # # Discriminator training
-        model.gen_batch()
-        model.batch_forward()
-        model.train_discriminator()
+        for X_batch, _ in model.dataloader:
+            model.train_joint(X_batch)
 
         # Print multiple checkpoints
-        if (i) % 100 == 0:
+        if (i) % 5 == 0:
             print(
                 f'step: {i}/{opt.iterations}, '
                 f'd_loss: {np.round(model.D_loss.item(), 4)}, '
-                f'g_loss_u: {np.round(model.G_loss_U.item(), 4)}, '
-                f'g_loss_s: {np.round(np.sqrt(model.G_loss_S.item()), 4)}, '
-                f'g_loss_v: {np.round(model.G_loss_V.item(), 4)}, '
-                f'e_loss_t0: {np.round(np.sqrt(model.E_loss_T0.item()), 4)}'
+                f'g_loss_u: {np.round(model.G_loss.item(), 4)}, '
+                #f'g_loss_s: {np.round(np.sqrt(model.G_loss_S.item()), 4)}, '
+                #f'g_loss_v: {np.round(model.G_loss_V.item(), 4)}, '
+                #f'e_loss_t0: {np.round(np.sqrt(model.E_loss_T0.item()), 4)}'
             )
 
         if (i+1) % 1000 == 0 or i==(opt.iterations-1):
             phase3_epochnum = {'embedding': opt.iterations, 'supervisor': opt.iterations, 'joint': i+1}
             model.save_checkpoint(phase3_epochnum, checkpoint_file)
 
-            #epsilon, best_alpha = model.privacy_engine.accountant.get_privacy_spent(delta=1e-5)
-            #print(f"(ε = {epsilon:.2f}, δ = {1e-5}) for α = {best_alpha}")
+            epsilon = model.privacy_engine.get_epsilon(delta=1e-5)
+            print(f"(ε = {epsilon:.2f}, δ = {1e-5})")
     print('Finish Joint Training')
 
-def test(ori_data, opt, filename):
+def dp_test(ori_data, opt, filename):
     """
     Test the TimeGAN model by generating synthetic data and evaluating its performance using discriminative 
     and predictive scores, followed by visualization using PCA and t-SNE.

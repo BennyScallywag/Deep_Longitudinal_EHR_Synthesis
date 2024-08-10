@@ -3,6 +3,7 @@ import numpy as np
 
 # 1. Training model
 from Train_and_Test import train, test
+from DP_Train_and_Test import dp_train, dp_test
 # 2. Data loading
 from torch_dataloading import real_data_loading, sine_data_generation
 import os
@@ -40,12 +41,19 @@ def main(opt, checkpoint_filename):
     print(opt.data_name + ' dataset is ready.')
 
     # Training or Testing
-    if opt.is_test:
-        test(opt, ori_data)
+    if opt.use_dp:
+        if opt.is_test:
+            dp_test(opt, ori_data)
+        else:
+            dp_train(ori_data, opt, checkpoint_filename)
+            dp_test(ori_data, opt, checkpoint_filename)
     else:
-        #print(ori_data)
-        train(ori_data, opt, checkpoint_filename)
-        test(ori_data, opt, checkpoint_filename)
+        if opt.is_test:
+            test(opt, ori_data)
+        else:
+            #print(ori_data)
+            train(ori_data, opt, checkpoint_filename)
+            test(ori_data, opt, checkpoint_filename)
 
 
 if __name__ == '__main__':
@@ -93,6 +101,7 @@ if __name__ == '__main__':
     parser.add_argument('--filename_additions', type=str, default="", help='prefix for checkpoint filename')
     # Model running parameters
     parser.add_argument('--is_test', type=bool, default=False, help='iterations of the metric computation')
+    parser.add_argument('--use_dp', type=bool, default=True, help='Whether to incorporate differential privacy in training')
     parser.add_argument('--only_visualize_metric', type=bool, default=False, help='only compute visualization metrics')
     parser.add_argument('--sample_to_excel', type=bool, default=False, help='whether to save a sample of the generated data to an excel file')
 
