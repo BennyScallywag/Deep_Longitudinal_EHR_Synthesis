@@ -143,11 +143,11 @@ class Timegan:
 
 
         self.G_loss_V = self.G_loss_V1 + self.G_loss_V2
-        self.G_loss_S = self.MSELoss(self.H_hat_supervise[:, :-1, :], self.H[:, 1:, :])
+        #self.G_loss_S = self.MSELoss(self.H_hat_supervise[:, :-1, :], self.H[:, 1:, :])
         self.G_loss = self.G_loss_U + \
                       self.opt.gamma * self.G_loss_U_e + \
-                      torch.sqrt(self.G_loss_S) * 100 + \
-                      self.G_loss_V * 100
+                      self.G_loss_V * 100 #+ \
+                      #torch.sqrt(self.G_loss_S) * 100
 
         self.G_loss.backward(retain_graph=True)
 

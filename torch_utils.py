@@ -143,6 +143,7 @@ def random_generator (batch_size, z_dim, T_mb, max_seq_len):
     Z_mb.append(temp_Z)
   return np.array(Z_mb)
 
+
 def batch_generator(data, time, batch_size):
     """Generate batches of data.
     

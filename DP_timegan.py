@@ -31,7 +31,7 @@ class TimeSeriesDataset(Dataset):
     def __getitem__(self, idx):
         return self.data[idx], self.times[idx]
 
-class Timegan:
+class DP_Timegan:
     def __init__(self, original_data, opt, checkpoint_file=None):
         self.device = tu.get_device()
         self.ori_data, self.min_val, self.max_val = tu.MinMaxScaler(original_data)
@@ -104,8 +104,7 @@ class Timegan:
         self.batch_size = self.X.size(0)
 
         # Random vector generation
-        self.Z = torch.rand(self.batch_size, self.X.size(1), self.params['input_dim']).to(self.device)#tu.random_generator(self.opt.batch_size, self.params['input_dim'], self.T, self.max_seq_len)
-        self.Z = torch.tensor(self.Z, dtype=torch.float32).to(self.device)
+        self.Z = torch.rand(self.batch_size, self.X.size(1), self.params['input_dim'], dtype=torch.float32).to(self.device)
 
         # total networks forward
     def batch_forward(self):
@@ -117,14 +116,9 @@ class Timegan:
         self.H_hat = self.supervisor(self.E_hat)
         self.X_hat = self.recovery(self.H_hat)
 
-        # self.Y_real = self.discriminator(self.H)
-        # self.Y_fake = self.discriminator(self.H_hat)
-        # self.Y_fake_e = self.discriminator(self.E_hat)
-
-        # When applying the discriminator
-        self.Y_real = self.discriminator(self.H)#.squeeze(-1)  # Ensure shape [batch_size]
-        self.Y_fake = self.discriminator(self.H_hat)#.squeeze(-1)  # Ensure shape [batch_size]
-        self.Y_fake_e = self.discriminator(self.E_hat)#.squeeze(-1)  # Ensure shape [batch_size]
+        self.Y_real = self.discriminator(self.H)
+        self.Y_fake = self.discriminator(self.H_hat)
+        self.Y_fake_e = self.discriminator(self.E_hat)
 
         noise = lambda x: x + torch.normal(mean=0, std=self.noise_sd, size=x.size()).to(self.device)
         self.noisyY_real = self.discriminator(noise(self.H))
@@ -231,6 +225,9 @@ class Timegan:
         self.optim_discriminator.zero_grad()
 
     def train_joint(self, X_batch):
+        '''Note that opacus seem to require that forward passes for obtaining data
+        are re-evalated after any gradient steps have been taken.
+        '''
         X_batch = X_batch.float()
         batch_size = X_batch.size(0)
         self.H = self.embedder(X_batch)
@@ -243,18 +240,26 @@ class Timegan:
         #Making Fake Data and Labels for DP_Discriminator
         raw_fake_data = self.generator(self.Z)
         supervised_fake_data = self.supervisor(raw_fake_data)
+        self.X_hat = self.recovery(supervised_fake_data)        #recovering for statistics loss
 
         real_labels = torch.ones(H_batch_size, 1).to(self.device)
         fake_labels = torch.zeros(H_batch_size, 1).to(self.device)
 
         #Real, Fake, and Raw Fake Data into Discriminator, compute losses
+        # real_output = self.discriminator(self.H)
+        # d_real_loss = self.BCELoss(real_output, real_labels)
+
+        # fake_output = self.discriminator(supervised_fake_data.detach())
+        # d_fake_loss = self.BCELoss(fake_output, fake_labels)
+
+        # raw_fake_output = self.discriminator(raw_fake_data.detach())
+        # d_raw_fake_loss = self.BCELoss(raw_fake_output, fake_labels)
         real_output = self.discriminator(self.H)
-        d_real_loss = self.BCELoss(real_output, real_labels)
-
         fake_output = self.discriminator(supervised_fake_data.detach())
-        d_fake_loss = self.BCELoss(fake_output, fake_labels)
-
         raw_fake_output = self.discriminator(raw_fake_data.detach())
+
+        d_real_loss = self.BCELoss(real_output, real_labels)
+        d_fake_loss = self.BCELoss(fake_output, fake_labels)
         d_raw_fake_loss = self.BCELoss(raw_fake_output, fake_labels)
 
         #Total DP_Discriminator Loss, backpropagate, step, zero gradients for opacus
@@ -272,29 +277,29 @@ class Timegan:
 
         #Generator Supervised Loss
         fake_output = self.discriminator(supervised_fake_data)
-        G_loss_U = self.BCELoss(fake_output, real_labels)
+        self.G_loss_U = self.BCELoss(fake_output, real_labels)
 
         #Generator Unsupservised Loss
         raw_fake_output = self.discriminator(raw_fake_data)
-        G_loss_U_e = self.BCELoss(raw_fake_output, real_labels)
+        self.G_loss_U_e = self.BCELoss(raw_fake_output, real_labels)
 
         #Generated Data Descriptive Temporal Statistics Loss
         mean_X = torch.mean(X_batch, dim=0)
         var_X = torch.var(X_batch, dim=0, unbiased=False)
-        mean_X_hat = torch.mean(X_batch, dim=0)
-        var_X_hat = torch.var(X_batch, dim=0, unbiased=False)
+        mean_X_hat = torch.mean(self.X_hat, dim=0)
+        var_X_hat = torch.var(self.X_hat, dim=0, unbiased=False)
         G_loss_V1 = torch.mean(torch.abs(torch.sqrt(var_X_hat + 1e-6) - torch.sqrt(var_X + 1e-6)))
         G_loss_V2 = torch.mean(torch.abs(mean_X_hat - mean_X))
-        G_loss_V = G_loss_V1 + G_loss_V2
-
+        self.G_loss_V = G_loss_V1 + G_loss_V2
+        
         #Continuing to Train Supervisor
         #self.H = self.embedder(X_batch)
         #supervised_real_latent_data = self.supervisor(self.H)
         #G_loss_S = self.MSELoss(supervised_real_latent_data[:, :-1, :], self.H[:, 1:, :])
 
-        self.G_loss = G_loss_U + G_loss_U_e + 100*G_loss_V #+ 10*G_loss_S
+        self.G_loss = self.G_loss_U + self.G_loss_U_e + 100*self.G_loss_V #+ 10*G_loss_S
 
-        self.G_loss.backward(retain_graph=True)
+        self.G_loss.backward()#retain_graph=True)
         self.optim_generator.step()  # Move this step immediately after the backward pass
     
     def reset_gradients(self):
