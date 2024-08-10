@@ -103,7 +103,7 @@ if __name__ == '__main__':
     # Call main function
     opt = parser.parse_args()
     no = f'_no{opt.sine_no}' if opt.data_name == 'sines' else ''
-    dp = 'DP' if opt.use_dp else ''
-    checkpoint_filename = f'{dp}_e{opt.iterations}{no}_noise{opt.noise_sd}_{opt.data_name}_{str(opt.filename_additions)}'
+    dp = 'DP_' if opt.use_dp else ''
+    checkpoint_filename = f'{dp}e{opt.iterations}{no}_noise{opt.noise_sd}_{opt.data_name}_{str(opt.filename_additions)}'
 
     main(opt, checkpoint_filename)
