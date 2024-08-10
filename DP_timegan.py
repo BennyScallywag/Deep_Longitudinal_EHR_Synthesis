@@ -76,13 +76,13 @@ class DP_Timegan:
 
         # Initialize PrivacyEngine for the discriminator
         self.privacy_engine = PrivacyEngine()
-        print('Compatibility:', self.privacy_engine.is_compatible(module=self.discriminator, optimizer=self.optim_discriminator, data_loader=self.dataloader))  #check compatibility
-        self.discriminator, self.optim_discriminator, self.dataloader = self.privacy_engine.make_private(
-            module=self.discriminator, 
-            optimizer=self.optim_discriminator, 
-            data_loader=self.dataloader,
-            noise_multiplier=1.0, 
-            max_grad_norm=1.0)
+        # print('Compatibility:', self.privacy_engine.is_compatible(module=self.discriminator, optimizer=self.optim_discriminator, data_loader=self.dataloader))  #check compatibility
+        # self.discriminator, self.optim_discriminator, self.dataloader = self.privacy_engine.make_private(
+        #     module=self.discriminator, 
+        #     optimizer=self.optim_discriminator, 
+        #     data_loader=self.dataloader,
+        #     noise_multiplier=1.0, 
+        #     max_grad_norm=1.0)
 
 
         self.start_epoch = {'embedding': 0, 'supervisor': 0, 'joint': 0}
@@ -138,8 +138,8 @@ class DP_Timegan:
     def train_embedder(self, join_train=False):
         self.embedder.train()
         self.recovery.train()
-        self.optim_embedder.zero_grad()
-        self.optim_recovery.zero_grad()
+        self.optim_embedder.zero_grad(set_to_none=True) 
+        self.optim_recovery.zero_grad(set_to_none=True)
         self.E_loss_T0 = self.MSELoss(self.X, self.X_tilde)
         self.E_loss0 = 10 * torch.sqrt(self.E_loss_T0)
 
@@ -156,8 +156,8 @@ class DP_Timegan:
         # GS_solver
         self.generator.train()
         self.supervisor.train()
-        self.optim_generator.zero_grad()
-        self.optim_supervisor.zero_grad()
+        self.optim_generator.zero_grad(set_to_none=True)
+        self.optim_supervisor.zero_grad(set_to_none=True)
         self.G_loss_S = self.MSELoss(self.H[:, 1:, :], self.H_hat_supervise[:, :-1, :])
         self.G_loss_S.backward()
         self.optim_generator.step()
@@ -168,7 +168,7 @@ class DP_Timegan:
 
     def train_generator(self, join_train=False):
         # G_solver
-        self.optim_generator.zero_grad()
+        self.optim_generator.zero_grad(set_to_none=True)
         #self.optim_supervisor.zero_grad()
         self.G_loss_U = self.BCELoss(self.Y_fake, torch.ones_like(self.Y_fake))
         self.G_loss_U_e = self.BCELoss(self.Y_fake_e, torch.ones_like(self.Y_fake_e))
@@ -194,7 +194,7 @@ class DP_Timegan:
                       torch.sqrt(self.G_loss_S) * 100 + \
                       self.G_loss_V * 100
 
-        self.G_loss.backward(retain_graph=True)     #retain graph is not the problem
+        self.G_loss.backward()#retain_graph=True)     #retain graph is not the problem
 
         self.optim_generator.step()
         self.optim_supervisor.step()
@@ -207,7 +207,7 @@ class DP_Timegan:
         print("H Shape:", self.H.shape)
         # D_solver
         self.discriminator.train()
-        self.optim_discriminator.zero_grad()
+        self.optim_discriminator.zero_grad(set_to_none=True)
         
         self.D_loss_real = self.BCELoss(self.noisyY_real, torch.ones_like(self.noisyY_real))
         self.D_loss_fake = self.BCELoss(self.noisyY_fake, torch.zeros_like(self.noisyY_fake))
@@ -228,14 +228,14 @@ class DP_Timegan:
         '''Note that opacus seem to require that forward passes for obtaining data
         are re-evalated after any gradient steps have been taken.
         '''
-        X_batch = X_batch.float()
+        X_batch = X_batch.float().to(self.device)
         batch_size = X_batch.size(0)
         self.H = self.embedder(X_batch)
         H_batch_size = self.H.size(0)
         self.Z = torch.randn(batch_size, X_batch.size(1), self.params['input_dim']).to(self.device)
 
         # 1. Train DP_Discriminator
-        self.optim_discriminator.zero_grad()
+        self.optim_discriminator.zero_grad(set_to_none=True)
 
         #Making Fake Data and Labels for DP_Discriminator
         raw_fake_data = self.generator(self.Z)
@@ -267,7 +267,7 @@ class DP_Timegan:
         if self.D_loss > 0.15:
             self.D_loss.backward()
             self.optim_discriminator.step()
-        self.optim_discriminator.zero_grad()
+        self.optim_discriminator.zero_grad(set_to_none=True)
 
         #epoch_d_loss += d_loss.item()
 
@@ -330,6 +330,9 @@ class DP_Timegan:
     
 
     def load_checkpoint(self, filename):
+        self.reinitialize_privacy_engine()      #need this to load the correct version of discrim - opacus version
+        #^^^When integrating this file with the other timegan, will need to check it opt.use_dp is on here^^^
+    
         filename = filename+'.pth'
         checkpoint_path = self.get_checkpoint_path(filename)
 
