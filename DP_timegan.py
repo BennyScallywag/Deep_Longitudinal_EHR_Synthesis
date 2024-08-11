@@ -77,12 +77,12 @@ class DP_Timegan:
         # Initialize PrivacyEngine for the discriminator
         self.privacy_engine = PrivacyEngine()
         print('Compatibility:', self.privacy_engine.is_compatible(module=self.discriminator, optimizer=self.optim_discriminator, data_loader=self.dataloader))  #check compatibility
-        self.discriminator, self.optim_discriminator, self.dataloader = self.privacy_engine.make_private(
-            module=self.discriminator, 
-            optimizer=self.optim_discriminator, 
-            data_loader=self.dataloader,
-            noise_multiplier=1.0, 
-            max_grad_norm=1.0)
+        # self.discriminator, self.optim_discriminator, self.dataloader = self.privacy_engine.make_private(
+        #     module=self.discriminator, 
+        #     optimizer=self.optim_discriminator, 
+        #     data_loader=self.dataloader,
+        #     noise_multiplier=1.0, 
+        #     max_grad_norm=1.0)
 
 
         self.start_epoch = {'embedding': 0, 'supervisor': 0, 'joint': 0}
@@ -344,11 +344,19 @@ class DP_Timegan:
             self.recovery.load_state_dict(checkpoint['model_state_dict']['recovery'])
             self.generator.load_state_dict(checkpoint['model_state_dict']['generator'])
             self.supervisor.load_state_dict(checkpoint['model_state_dict']['supervisor'])
-            self.discriminator.load_state_dict(checkpoint['model_state_dict']['discriminator'])
-            #self.er_optimizer.load_state_dict(checkpoint['optimizer_state_dict']['er_optimizer'])
+            #self.discriminator.load_state_dict(checkpoint['model_state_dict']['discriminator'])
+
+            if self.start_epoch['joint'] > 0:
+                self.reinitialize_privacy_engine()
+                self.discriminator.load_state_dict(checkpoint['model_state_dict']['discriminator'])
+                self.optim_discriminator.load_state_dict(checkpoint['optimizer_state_dict']['discriminator_optimizer'])
+            else:
+                self.discriminator.load_state_dict(checkpoint['model_state_dict']['discriminator'])
+                self.optim_discriminator.load_state_dict(checkpoint['optimizer_state_dict']['discriminator_optimizer'])
+
             self.optim_generator.load_state_dict(checkpoint['optimizer_state_dict']['generator_optimizer'])
             self.optim_supervisor.load_state_dict(checkpoint['optimizer_state_dict']['supervisor_optimizer'])
-            self.optim_discriminator.load_state_dict(checkpoint['optimizer_state_dict']['discriminator_optimizer'])
+            #self.optim_discriminator.load_state_dict(checkpoint['optimizer_state_dict']['discriminator_optimizer'])
             self.optim_embedder.load_state_dict(checkpoint['optimizer_state_dict']['embedder_optimizer'])
             self.optim_recovery.load_state_dict(checkpoint['optimizer_state_dict']['recovery_optimizer'])
             print(f"Checkpoint loaded from {checkpoint_path}")
