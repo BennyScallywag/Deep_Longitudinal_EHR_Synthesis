@@ -76,13 +76,13 @@ class DP_Timegan:
 
         # Initialize PrivacyEngine for the discriminator
         self.privacy_engine = PrivacyEngine()
-        # print('Compatibility:', self.privacy_engine.is_compatible(module=self.discriminator, optimizer=self.optim_discriminator, data_loader=self.dataloader))  #check compatibility
-        # self.discriminator, self.optim_discriminator, self.dataloader = self.privacy_engine.make_private(
-        #     module=self.discriminator, 
-        #     optimizer=self.optim_discriminator, 
-        #     data_loader=self.dataloader,
-        #     noise_multiplier=1.0, 
-        #     max_grad_norm=1.0)
+        print('Compatibility:', self.privacy_engine.is_compatible(module=self.discriminator, optimizer=self.optim_discriminator, data_loader=self.dataloader))  #check compatibility
+        self.discriminator, self.optim_discriminator, self.dataloader = self.privacy_engine.make_private(
+            module=self.discriminator, 
+            optimizer=self.optim_discriminator, 
+            data_loader=self.dataloader,
+            noise_multiplier=1.0, 
+            max_grad_norm=1.0)
 
 
         self.start_epoch = {'embedding': 0, 'supervisor': 0, 'joint': 0}
@@ -318,6 +318,7 @@ class DP_Timegan:
             max_grad_norm=1.0
         )
 
+
     def reinitialize_discriminator(self):
         self.discriminator = DP_Discriminator(self.params['hidden_dim'], self.params['num_layers']).to(self.device)
         self.optim_discriminator = torch.optim.Adam(self.discriminator.parameters(), lr=self.opt.lr)
@@ -330,7 +331,7 @@ class DP_Timegan:
     
 
     def load_checkpoint(self, filename):
-        self.reinitialize_privacy_engine()      #need this to load the correct version of discrim - opacus version
+        #self.reinitialize_privacy_engine()      #need this to load the correct version of discrim - opacus version
         #^^^When integrating this file with the other timegan, will need to check it opt.use_dp is on here^^^
     
         filename = filename+'.pth'
@@ -374,6 +375,12 @@ class DP_Timegan:
             os.makedirs(checkpt_dir)
 
         #checkpoint_path = os.path.join(checkpoint_dir, filename)
+        # if epoch['joint'] > 0:
+        #     temp_model = self.discriminator._module
+        #     temp_opt = self.optim_discriminator._optimizer
+        # else:
+        #     temp_model = self.discriminator
+        #     temp_opt = self.optim_discriminator
 
         checkpoint = {
             'epoch': epoch,

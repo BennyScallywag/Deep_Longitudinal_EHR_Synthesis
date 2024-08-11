@@ -1,6 +1,6 @@
 import numpy as np
 #from timegan import Timegan
-from DP_timegan_lowmem import DP_Timegan
+from DP_timegan import DP_Timegan
 from timegan import Timegan
 import matplotlib.pyplot as plt
 from metrics.torch_discriminative_metric import discriminative_score_metrics
