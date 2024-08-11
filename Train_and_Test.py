@@ -9,6 +9,7 @@ from metrics.torch_predictive_metric import predictive_score_metrics
 import Plotting_and_Visualization as pv
 import torch_utils as tu
 import pandas as pd
+import torch
 import os
 
 def train(ori_data, opt, checkpoint_file):
@@ -104,6 +105,7 @@ def dp_train(ori_data, opt, checkpoint_file):
         model.train_embedder()
         if (i) % 100 == 0:
             print(f'step: {str(i)}/{str(opt.iterations)}, e_loss: {str(np.round(np.sqrt(model.E_loss_T0.item()), 4))}')
+            print(f"Memory Allocated: {torch.cuda.memory_allocated(model.device) / 1024**2} MB")
         
         if (i+1) % 1000 == 0 or i==(opt.iterations-1):
             phase1_epochnum = {'embedding': i+1, 'supervisor': 0, 'joint': 0}
@@ -118,6 +120,7 @@ def dp_train(ori_data, opt, checkpoint_file):
         model.train_supervisor()
         if (i) % 100 == 0:
             print(f'step: {str(i)}/{str(opt.iterations)},  g_loss_s: {str(np.round(np.sqrt(model.G_loss_S.item()), 4))}')
+            print(f"Memory Allocated: {torch.cuda.memory_allocated(model.device) / 1024**2} MB")
         
         if (i+1) % 1000 == 0 or i==(opt.iterations-1):
             phase2_epochnum = {'embedding': opt.iterations, 'supervisor': i+1, 'joint': 0}
@@ -144,6 +147,7 @@ def dp_train(ori_data, opt, checkpoint_file):
                 f'g_loss_v: {np.round(model.G_loss_V.item(), 4)}, '
                 #f'e_loss_t0: {np.round(np.sqrt(model.E_loss_T0.item()), 4)}'
             )
+            print(f"Memory Allocated: {torch.cuda.memory_allocated(model.device) / 1024**2} MB")
 
         if (i+1) % 1000 == 0 or i==(opt.iterations-1):
             phase3_epochnum = {'embedding': opt.iterations, 'supervisor': opt.iterations, 'joint': i+1}

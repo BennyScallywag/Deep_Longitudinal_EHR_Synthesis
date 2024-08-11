@@ -310,12 +310,15 @@ class DP_Timegan:
         self.optim_discriminator.zero_grad(set_to_none=True)
 
     def reinitialize_privacy_engine(self):
-        self.discriminator, self.optim_discriminator, self.dataloader = self.privacy_engine.make_private(
+        self.discriminator, self.optim_discriminator, self.dataloader = self.privacy_engine.make_private_with_epsilon(
             module=self.discriminator, 
             optimizer=self.optim_discriminator, 
             data_loader=self.dataloader,
-            noise_multiplier=1.3, 
-            max_grad_norm=1.0
+            #noise_multiplier=1.3, 
+            max_grad_norm=1.0,
+            target_epsilon=15.0,
+            target_delta=1e-5,
+            epochs=self.opt.iterations,
         )
 
 
