@@ -77,6 +77,7 @@ class DP_Timegan:
         # Initialize PrivacyEngine for the discriminator
         self.privacy_engine = PrivacyEngine()
         print('Compatibility:', self.privacy_engine.is_compatible(module=self.discriminator, optimizer=self.optim_discriminator, data_loader=self.dataloader))  #check compatibility
+        self.epsilon = opt.eps
         # self.discriminator, self.optim_discriminator, self.dataloader = self.privacy_engine.make_private(
         #     module=self.discriminator, 
         #     optimizer=self.optim_discriminator, 
@@ -309,14 +310,14 @@ class DP_Timegan:
         self.optim_supervisor.zero_grad(set_to_none=True)
         self.optim_discriminator.zero_grad(set_to_none=True)
 
-    def reinitialize_privacy_engine(self):
+    def initialize_privacy_engine(self):
         self.discriminator, self.optim_discriminator, self.dataloader = self.privacy_engine.make_private_with_epsilon(
             module=self.discriminator, 
             optimizer=self.optim_discriminator, 
             data_loader=self.dataloader,
             #noise_multiplier=1.3, 
             max_grad_norm=1.0,
-            target_epsilon=15.0,
+            target_epsilon=self.epsilon,
             target_delta=1e-5,
             epochs=self.opt.iterations,
         )
@@ -350,7 +351,7 @@ class DP_Timegan:
             #self.discriminator.load_state_dict(checkpoint['model_state_dict']['discriminator'])
 
             if self.start_epoch['joint'] > 0:
-                self.reinitialize_privacy_engine()
+                self.initialize_privacy_engine()
                 self.discriminator.load_state_dict(checkpoint['model_state_dict']['discriminator'])
                 self.optim_discriminator.load_state_dict(checkpoint['optimizer_state_dict']['discriminator_optimizer'])
             else:

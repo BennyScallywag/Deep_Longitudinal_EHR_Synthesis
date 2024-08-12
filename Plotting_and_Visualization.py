@@ -94,7 +94,7 @@ def get_clustering(ori_data, generated_data):
     
     # t-SNE
     prep_data_final = np.concatenate((prep_data, prep_data_hat), axis=0)
-    tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
+    tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=300)
     tsne_results_all = tsne.fit_transform(prep_data_final)
     
     tsne_results = tsne_results_all[:anal_sample_no, :]

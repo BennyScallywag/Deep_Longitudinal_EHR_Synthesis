@@ -85,7 +85,7 @@ def train(ori_data, opt, checkpoint_file):
             model.save_checkpoint(phase3_epochnum, checkpoint_file)
     print('Finish Joint Training')
 
-def dp_train(ori_data, opt, checkpoint_file):
+def dp_train(ori_data, opt, checkpoint_file, delta=1e-5):
     """
     Train the TimeGAN model using a three-phase training process: 
     embedding network training, supervised loss training, and joint training.
@@ -129,7 +129,7 @@ def dp_train(ori_data, opt, checkpoint_file):
 
     #model.reset_gradients()
     model.reinitialize_discriminator()
-    model.reinitialize_privacy_engine()
+    model.initialize_privacy_engine()
     #3. Joint Training
     print('Start Joint Training')
     model.discriminator.train()
@@ -156,8 +156,9 @@ def dp_train(ori_data, opt, checkpoint_file):
             epsilon = model.privacy_engine.get_epsilon(delta=1e-5)
             print(f"(ε = {epsilon:.2f}, δ = {1e-5})")
     print('Finish Joint Training')
+    return {'epsilon': opt.eps, 'delta': delta}
 
-def test(ori_data, opt, filename):
+def test(ori_data, opt, filename, privacy_params=None):
     """
     Test the TimeGAN model by generating synthetic data and evaluating its performance using discriminative 
     and predictive scores, followed by visualization using PCA and t-SNE.
@@ -233,6 +234,13 @@ def test(ori_data, opt, filename):
     tu.save_results_to_excel(f'{filename}', metric_results, opt)
 
     print(metric_results)
+    print(f'Iterations: {opt.iterations}, Data Name: {opt.data_name}, DP Enabled: {opt.use_dp}')
+    if opt.use_dp and privacy_params:
+        epsilon = privacy_params.get("epsilon", "N/A")
+        delta = privacy_params.get("delta", 1e-5)
+        print(f"(ε = {epsilon:.2f}, δ = {delta})")
     
     # 3. Visualization (PCA and tSNE)
     pv.plot_4pane(ori_data, gen_data, filename=f'{filename}.pdf')
+
+

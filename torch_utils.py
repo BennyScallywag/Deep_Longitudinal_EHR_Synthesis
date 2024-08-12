@@ -183,13 +183,17 @@ def save_results_to_excel(filename, metric_results, opt):
     sine_no = opt.sine_no if opt.data_name == 'sines' else None
     # Create a dataframe from the metric results
     df = pd.DataFrame({
-        "Filename": [filename],
-        "Discriminative Score": [metric_results['discriminative']],
-        "Predictive Score": [metric_results['predictive']],
-        "Data Name": [opt.data_name],
-        "Sequence Length": [opt.seq_len],
-        "Iterations": [opt.iterations],
-        "Sinusoid Samples": [sine_no],
+        #"Filename": [filename],
+        "Dataset": [opt.data_name],
+        "#Epochs": [opt.iterations],
+        "Noise SD": [opt.noise_sd],
+        "Metric Trials": [opt.metric_iteration],
+        "Discrim. Score": [metric_results['discriminative']],
+        "Pred. Score": [metric_results['predictive']],
+        #"Sequence Length": [opt.seq_len],
+        #"Sinusoid Samples": [sine_no],
+        "Use DP": [opt.use_dp],
+        "Epsilon": [opt.eps] if opt.use_dp else None,
     })
     
     # Append to the existing Excel file if it exists, otherwise create a new one
