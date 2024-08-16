@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # Model running parameters
     parser.add_argument('--test_only', action="store_true", help='iterations of the metric computation')
     parser.add_argument('--only_visualize_metric', type=bool, default=False, help='only compute visualization metrics')
-    parser.add_argument('--sample_to_excel', type=bool, default=False, help='whether to save a sample of the generated data to an excel file')
+    parser.add_argument('--sample_to_excel', action="store_true", help='whether to save a sample of the generated data to an excel file')
     # DP Parameters
     parser.add_argument('--use_dp', action="store_true", help='Include this if you want to use differential privacy in training')
     parser.add_argument('--eps', type=float, default=15, help='Target epsilon value for DP')

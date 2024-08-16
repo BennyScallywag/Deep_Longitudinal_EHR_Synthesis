@@ -75,7 +75,7 @@ class DP_Timegan:
         self.BCELoss = torch.nn.BCELoss()
 
         # Initialize PrivacyEngine for the discriminator
-        self.privacy_engine = PrivacyEngine()
+        self.privacy_engine = PrivacyEngine(accountant='rdp')
         print('Compatibility:', self.privacy_engine.is_compatible(module=self.discriminator, optimizer=self.optim_discriminator, data_loader=self.dataloader))  #check compatibility
         self.epsilon = opt.eps
         # self.discriminator, self.optim_discriminator, self.dataloader = self.privacy_engine.make_private(

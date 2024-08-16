@@ -176,11 +176,9 @@ def test(ori_data, opt, filename, privacy_params=None):
         model = Timegan(ori_data, opt, filename)
 
     # Synthetic data generation
-    #synth_size = opt.synth_size if opt.synth_size != 0 else len(ori_data)
     synth_size = min(opt.synth_size, len(ori_data))
     generated_data = model.gen_synth_data(synth_size)
     generated_data = generated_data.cpu().detach().numpy()
-    gen_data = list()
     gen_data = [generated_data[i, :opt.seq_len, :] for i in range(synth_size)]
     gen_data = np.array([(data * model.max_val) + model.min_val for data in gen_data])
     print('Finish Synthetic Data Generation')
@@ -208,28 +206,8 @@ def test(ori_data, opt, filename, privacy_params=None):
     metric_results['predictive'] = np.mean(predictive_score)
     print('Finish predictive_score_metrics compute')
 
-    # Save first 5 entries of generated data to an Excel file
     if opt.sample_to_excel:
-        first_five_entries = gen_data[:5]
-        m, n, p = first_five_entries.shape
-        reshaped_data = first_five_entries.reshape(m * n, p)
-        
-        # Create a DataFrame and add a column to indicate the series ID
-        column_names = ['eGFR', 'age', 'BMI', 'Hb', 'Alb', 'Cr', 'UPCR'] if opt.data_name == 'ckd' else [f'Feature_{i+1}' for i in range(p)]
-        df = pd.DataFrame(reshaped_data, columns=column_names)
-        df['Series_ID'] = np.repeat(np.arange(1, m + 1), n)
-        
-        # Reorder the columns to place 'Series_ID' at the beginning
-        df = df[['Series_ID'] + column_names]
-
-        excel_file = f'{filename}_first_five_entries.xlsx'
-        script_dir = os.path.dirname(__file__)
-        results_dir = os.path.join(script_dir, '..', 'Excel Results')
-        excel_path = os.path.join(results_dir, excel_file)
-        
-        # Save to Excel
-        df.to_excel(excel_path, index=False)
-        print('First 5 entries of generated data saved to Excel')
+        tu.sample_synthetic_table_to_excel(gen_data, opt, filename, num_series=5)
     
     tu.save_results_to_excel(f'{filename}', metric_results, opt)
 

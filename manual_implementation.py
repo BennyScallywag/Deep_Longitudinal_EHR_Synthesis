@@ -1,12 +1,14 @@
 import numpy as np
 from timegan import Timegan
-from Train_and_Test import train, test
+from Train_and_Test import train, test, dp_train
 from torch_dataloading import real_data_loading, sine_data_generation
 import os
 import pandas as pd
 
 class Options:
-    def __init__(self, epochs, sine_no, hidden_dim, num_layer, lr, seq_len, data_name, gamma, batch_size, filename_prefix, module='gru', synth_size=100, metric_iteration=2, noise_sd = 0.2, sample_to_excel=False):
+    def __init__(self, epochs, sine_no, hidden_dim, num_layer, lr, seq_len, data_name, gamma, batch_size, filename_prefix, 
+                 module='gru', synth_size=100, metric_iteration=2, noise_sd = 0.2, use_dp=False, eps=15, delta=1e-5,
+                 sample_to_excel=False):
         self.iterations = epochs
         self.sine_no = sine_no
         self.hidden_dim = hidden_dim
@@ -21,18 +23,24 @@ class Options:
         self.synth_size = synth_size
         self.metric_iteration = metric_iteration
         self.noise_sd = noise_sd
+        self.use_dp = use_dp
+        self.eps = eps
+        self.delta = delta
         self.sample_to_excel = sample_to_excel
 
 # ----------------CHANGE THESE (INPUTS)------------------
 opt = Options(
-    epochs=100,              #number of epochs
+    epochs=21,              #number of epochs
     sine_no=1000,            #number of training time-series's if using the 'sines' data
     hidden_dim=24,           #dimension of the latent space
     num_layer=3,             #number of hidden layers in each network
     lr=0.001,                #learning rate (shouldnt make much of a difference)
     seq_len = 24,            #sequence length
-    data_name = 'stocks',     #which dataset to use, options are 'sines', 'stocks', and 'ckd'
+    data_name = 'ckd',    #which dataset to use, options are 'sines', 'stocks', and 'ckd'
     noise_sd=0.2,            #standard deviation of noise added to the disriminator inputs during training
+    use_dp = False,           #whether to use differentially private training
+    eps = 15,                 #epsilon value for differential privacy
+    delta = 1e-5,             #delta value for differential privacy
     gamma = 1,               #relative weight of generator loss to discriminator loss during training
     batch_size = 128,
     filename_prefix = ''     #IMPORTANT: prefix to add to checkpoint filename, this ensures that you dont overwrite an existing checkpoint if using the same parameters
@@ -55,7 +63,7 @@ if __name__ == "__main__":
 
         #Loading and filtering the Japanese CKD dataset
         df_ckd = pd.read_csv(data_path, delimiter=",")
-        columns_used = ['age', 'BMI', 'Hb', 'Alb', 'Cr', 'UPCR', 'eGFR']
+        columns_used = ['eGFR', 'age', 'BMI', 'Hb', 'Alb', 'Cr', 'UPCR']
         df_ckd = df_ckd[columns_used].dropna(axis=0)
 
         #Convert to Numpy array and reshape into time series sub-arrays
@@ -68,5 +76,9 @@ if __name__ == "__main__":
         ori_data = ckd_sequences_array[mask]
     print(f'{opt.data_name} dataset is ready.')
     
-    train(ori_data, opt, checkpoint_filename)
-    test(ori_data, opt, checkpoint_filename)
+    if opt.use_dp:
+        privacy_params = dp_train(ori_data, opt, checkpoint_filename, delta=1e-5)
+        test(ori_data, opt, checkpoint_filename, privacy_params)
+    else:
+        train(ori_data, opt, checkpoint_filename)
+        test(ori_data, opt, checkpoint_filename)

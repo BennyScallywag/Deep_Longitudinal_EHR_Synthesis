@@ -209,6 +209,36 @@ def save_results_to_excel(filename, metric_results, opt):
     # Save the dataframe to the excel file
     df.to_excel(excel_path, index=False)
 
+def sample_synthetic_table_to_excel(gen_data, opt, filename, num_series=5):
+    """
+    Save the first 5 entries of generated data to an Excel file.
+
+    Args:
+        gen_data (np.ndarray): The generated data to be saved.
+        opt (Namespace): The options/parameters for the process.
+        filename (str): The base filename for saving the output.
+    """
+    first_five_entries = gen_data[:num_series]
+    m, n, p = first_five_entries.shape
+    reshaped_data = first_five_entries.reshape(m * n, p)
+    
+    # Create a DataFrame and add a column to indicate the series ID
+    column_names = ['eGFR', 'age', 'BMI', 'Hb', 'Alb', 'Cr', 'UPCR'] if opt.data_name == 'ckd' else [f'Feature_{i+1}' for i in range(p)]
+    df = pd.DataFrame(reshaped_data, columns=column_names)
+    df['Series_ID'] = np.repeat(np.arange(1, m + 1), n)
+    
+    # Reorder the columns to place 'Series_ID' at the beginning
+    df = df[['Series_ID'] + column_names]
+
+    excel_file = f'{filename}_first_five_entries.xlsx'
+    script_dir = os.path.dirname(__file__)
+    results_dir = os.path.join(script_dir, '..', 'Excel Results')
+    excel_path = os.path.join(results_dir, excel_file)
+    
+    # Save to Excel
+    df.to_excel(excel_path, index=False)
+    print('First 5 entries of generated data saved to Excel')
+
 def get_device():
     """Get the device (CPU or GPU) that PyTorch will use.
     
