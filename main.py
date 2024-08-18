@@ -3,6 +3,7 @@ import numpy as np
 
 # 1. Training model
 from Train_and_Test import train, dp_train, test
+#from TT2 import train, dp_train, test
 # 2. Data loading
 from torch_dataloading import real_data_loading, sine_data_generation
 import os

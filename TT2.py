@@ -1,7 +1,7 @@
 import numpy as np
 #from timegan import Timegan
 from DP_timegan import DP_Timegan
-from timegan import Timegan
+from timegan_test import Timegan
 import matplotlib.pyplot as plt
 from metrics.torch_discriminative_metric import discriminative_score_metrics
 from metrics.torch_predictive_metric import predictive_score_metrics
@@ -27,9 +27,11 @@ def train(ori_data, opt, checkpoint_file):
     # 1. Embedding network training
     print('Start Embedding Network Training')
     for i in range(model.start_epoch['embedding'], opt.iterations):
-        model.gen_batch()
-        model.batch_forward()
-        model.train_embedder()
+        for X_batch in model.dataloader:
+            model.X = X_batch.float().to(model.device)
+            model.gen_batch()
+            model.forward_embedder_recovery()
+            model.train_embedder()
         if (i) % 100 == 0:
             print(f'step: {str(i)}/{str(opt.iterations)}, e_loss: {str(np.round(np.sqrt(model.E_loss_T0.item()), 4))}')
         
@@ -44,9 +46,11 @@ def train(ori_data, opt, checkpoint_file):
     # 2. Training only with supervised loss
     print('Start Training with Supervised Loss Only')
     for i in range(model.start_epoch['supervisor'],opt.iterations):
-        model.gen_batch()
-        model.batch_forward()
-        model.train_supervisor()
+        for X_batch in model.dataloader:
+            model.X = X_batch.float().to(model.device)
+            model.gen_batch()
+            model.forward_supervisor()
+            model.train_supervisor()
         if (i) % 100 == 0:
             print(f'step: {str(i)}/{str(opt.iterations)},  g_loss_s: {str(np.round(np.sqrt(model.G_loss_S.item()), 4))}')
         
@@ -58,17 +62,18 @@ def train(ori_data, opt, checkpoint_file):
     # 3. Joint Training
     print('Start Joint Training')
     for i in range(model.start_epoch['joint'], opt.iterations):
-        # Generator training (twice more than discriminator training)
-        for kk in range(2):
+        for X_batch in model.dataloader:
+            model.X = X_batch.float().to(model.device)
+            for kk in range(2):
+                model.gen_batch()
+                model.forward_generator_discriminator()
+                model.train_generator()
+                model.forward_embedder_recovery()
+                model.train_embedder()
+            # # Discriminator training
             model.gen_batch()
-            model.batch_forward()
-            model.train_generator(join_train=True)
-            model.batch_forward()
-            model.train_embedder(join_train=True)
-        # # Discriminator training
-        model.gen_batch()
-        model.batch_forward()
-        model.train_discriminator()
+            model.forward_generator_discriminator()
+            model.train_discriminator()
 
         # Print multiple checkpoints
         if (i) % 100 == 0:
@@ -136,7 +141,7 @@ def dp_train(ori_data, opt, checkpoint_file, delta=1e-5):
     model.generator.train()
     for i in range(model.start_epoch['joint'], opt.iterations):
         for X_batch, _ in model.dataloader:
-            #batch saved to device inside of the joint training function (no need here)
+            X_batch = X_batch.to(model.device)
             model.train_joint(X_batch)
 
         # Print multiple checkpoints

@@ -34,8 +34,8 @@ class Generator(nn.Module):
         self.fc = nn.Linear(hidden_dim, hidden_dim)
 
     def forward(self, z):
-        e, _ = self.rnn(z)
-        e = torch.sigmoid(self.fc(e))
+        e, _ = self.rnn(z)      #e gives output from every hidden state, each corresponding to a time step
+        e = torch.sigmoid(self.fc(e))       #shoving raw (hidden) predictions through FC layer gives generated results
         #e = self.fc(e)
         return e
 
@@ -46,7 +46,7 @@ class Supervisor(nn.Module):
         self.fc = nn.Linear(hidden_dim, hidden_dim)
 
     def forward(self, h):
-        s, _ = self.rnn(h)
+        s, _ = self.rnn(h)      #s gives output from every hidden state, each corresponding to a time step
         s = torch.sigmoid(self.fc(s))
         #s = self.fc(s)
         return s
@@ -83,6 +83,8 @@ class DP_Discriminator(nn.Module):
         
         # Take the output from the last time step
         out = lstm_out[:, -1, :]  # Shape: (batch_size, hidden_dim)
+        #^^^ this gives the output of the last hidden state, otherwise out would have shape (Batch#, seq_len, hidden_dim)
+        #i.e. one array for each time step
         
         # Pass through the fully connected layer
         out = self.fc(out)
