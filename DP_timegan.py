@@ -107,12 +107,38 @@ class DP_Timegan:
         # Random vector generation
         self.Z = torch.rand(self.batch_size, self.X.size(1), self.params['input_dim'], dtype=torch.float32).to(self.device)
 
-        # total networks forward
-    def batch_forward(self):
+    ## total networks forward
+    # def batch_forward(self):
+    #     self.H = self.embedder(self.X)
+    #     self.X_tilde = self.recovery(self.H)
+    #     self.H_hat_supervise = self.supervisor(self.H)
+
+    #     self.E_hat = self.generator(self.Z)
+    #     self.H_hat = self.supervisor(self.E_hat)
+    #     self.X_hat = self.recovery(self.H_hat)
+
+    #     self.Y_real = self.discriminator(self.H)
+    #     self.Y_fake = self.discriminator(self.H_hat)
+    #     self.Y_fake_e = self.discriminator(self.E_hat)
+
+    #     noise = lambda x: x + torch.normal(mean=0, std=self.noise_sd, size=x.size()).to(self.device)
+    #     self.noisyY_real = self.discriminator(noise(self.H))
+    #     self.noisyY_fake = self.discriminator(noise(self.H_hat))
+    #     self.noisyY_fake_e = self.discriminator(noise(self.E_hat))
+
+    def forward_embedder_recovery(self):
+        """Forward pass for embedding and recovery networks."""
         self.H = self.embedder(self.X)
         self.X_tilde = self.recovery(self.H)
+
+    def forward_supervisor(self):
+        """Forward pass for the supervisor network."""
+        self.H = self.embedder(self.X)
         self.H_hat_supervise = self.supervisor(self.H)
 
+    def forward_generator_discriminator(self):
+        """Forward pass for generator and discriminator networks."""
+        self.H = self.embedder(self.X)
         self.E_hat = self.generator(self.Z)
         self.H_hat = self.supervisor(self.E_hat)
         self.X_hat = self.recovery(self.H_hat)
@@ -121,10 +147,9 @@ class DP_Timegan:
         self.Y_fake = self.discriminator(self.H_hat)
         self.Y_fake_e = self.discriminator(self.E_hat)
 
-        noise = lambda x: x + torch.normal(mean=0, std=self.noise_sd, size=x.size()).to(self.device)
-        self.noisyY_real = self.discriminator(noise(self.H))
-        self.noisyY_fake = self.discriminator(noise(self.H_hat))
-        self.noisyY_fake_e = self.discriminator(noise(self.E_hat))
+        self.noisyY_real = self.discriminator(self.H + torch.normal(mean=0, std=self.noise_sd, size=self.H.size()).to(self.device))
+        self.noisyY_fake = self.discriminator(self.H_hat + torch.normal(mean=0, std=self.noise_sd, size=self.H_hat.size()).to(self.device))
+        self.noisyY_fake_e = self.discriminator(self.E_hat + torch.normal(mean=0, std=self.noise_sd, size=self.E_hat.size()).to(self.device))
 
     def gen_synth_data(self, batch_size):
         self.Z = tu.random_generator(batch_size, self.params['input_dim'], self.ori_time, self.max_seq_len)
@@ -144,7 +169,7 @@ class DP_Timegan:
         self.E_loss_T0 = self.MSELoss(self.X, self.X_tilde)
         self.E_loss0 = 10 * torch.sqrt(self.E_loss_T0)
 
-        self.G_loss_S = self.MSELoss(self.H[:, 1:, :], self.H_hat_supervise[:, :-1, :])
+        #self.G_loss_S = self.MSELoss(self.H[:, 1:, :], self.H_hat_supervise[:, :-1, :])
         self.E_loss = self.E_loss0 #+ 0.1 * self.G_loss_S
         self.E_loss.backward()
         self.optim_embedder.step()

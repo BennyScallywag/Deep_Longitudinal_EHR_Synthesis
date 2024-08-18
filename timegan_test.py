@@ -25,7 +25,7 @@ class Timegan:
         self.no, self.seq_len, self.z_dim = np.asarray(original_data).shape
         self.opt = opt
 
-        self.dataloader = DataLoader(self.ori_data, batch_size=self.opt.batch_size, shuffle=True, num_workers=4, pin_memory=True)
+        self.dataloader = DataLoader(self.ori_data, batch_size=self.opt.batch_size, shuffle=True)
 
         # Create and initialize networks.
         self.params = dict()

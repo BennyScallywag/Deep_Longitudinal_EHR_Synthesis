@@ -8,9 +8,11 @@ from Train_and_Test import train, dp_train, test
 from torch_dataloading import real_data_loading, sine_data_generation
 import os
 import pandas as pd
+import time
 
-
+start_time = time.time()
 def main(opt, checkpoint_filename):
+    start_time = time.time()
     # Data loading
     ori_data = None
     if opt.data_name in ['stocks', 'energy']:
@@ -51,6 +53,9 @@ def main(opt, checkpoint_filename):
             train(ori_data, opt, checkpoint_filename)
             test(ori_data, opt, checkpoint_filename)
 
+    end_time = time.time()
+    print(f"Time taken: {end_time - start_time} seconds")
+
 
 if __name__ == '__main__':
     """Main function for timeGAN experiments.
@@ -79,7 +84,7 @@ if __name__ == '__main__':
     # Network parameters (should be optimized for different datasets)
     parser.add_argument('--module', choices=['gru', 'lstm'], default='gru', type=str)
     parser.add_argument('--hidden_dim', type=int, default=24, help='hidden state dimensions')
-    parser.add_argument('--num_layer', type=int, default=3, help='number of layers')
+    parser.add_argument('--num_layer', type=int, default=2, help='number of layers')
     # Model training and testing parameters
     parser.add_argument('--gamma', type=float, default=1, help='gamma weight for G_loss and D_loss')
     parser.add_argument('--lr', type=float, default=0.001, help='initial learning rate for adam')
@@ -107,6 +112,6 @@ if __name__ == '__main__':
     opt = parser.parse_args()
     no = f'_no{opt.sine_no}' if opt.data_name == 'sines' else ''
     dp = 'DP_' if opt.use_dp else ''
-    checkpoint_filename = f'{dp}e{opt.iterations}{no}_noise{opt.noise_sd}_{opt.data_name}_{str(opt.filename_additions)}'
+    checkpoint_filename = f'{dp}e{opt.iterations}{no}_l{opt.num_layer}_noise{opt.noise_sd}_{opt.data_name}_{str(opt.filename_additions)}'
 
     main(opt, checkpoint_filename)

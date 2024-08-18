@@ -68,19 +68,11 @@ class Timegan:
         self.Z = torch.tensor(np.array(self.Z), dtype=torch.float32).to(self.device)
 
         # total networks forward
-    def forward_embedder_recovery(self):
-        """Forward pass for embedding and recovery networks."""
+    def batch_forward(self):
         self.H = self.embedder(self.X)
         self.X_tilde = self.recovery(self.H)
-
-    def forward_supervisor(self):
-        """Forward pass for the supervisor network."""
-        self.H = self.embedder(self.X)
         self.H_hat_supervise = self.supervisor(self.H)
 
-    def forward_generator_discriminator(self):
-        """Forward pass for generator and discriminator networks."""
-        self.H = self.embedder(self.X)
         self.E_hat = self.generator(self.Z)
         self.H_hat = self.supervisor(self.E_hat)
         self.X_hat = self.recovery(self.H_hat)
@@ -92,7 +84,7 @@ class Timegan:
         self.noisyY_real = self.discriminator(self.H + torch.normal(mean=0, std=self.noise_sd, size=self.H.size()).to(self.device))
         self.noisyY_fake = self.discriminator(self.H_hat + torch.normal(mean=0, std=self.noise_sd, size=self.H_hat.size()).to(self.device))
         self.noisyY_fake_e = self.discriminator(self.E_hat + torch.normal(mean=0, std=self.noise_sd, size=self.E_hat.size()).to(self.device))
-    
+
     def gen_synth_data(self, batch_size):
         self.Z = tu.random_generator(batch_size, self.params['input_dim'], self.ori_time, self.max_seq_len)
         self.Z = torch.tensor(self.Z, dtype=torch.float32).to(self.device)
@@ -105,7 +97,7 @@ class Timegan:
 
         return self.X_hat
     
-    def train_embedder(self):
+    def train_embedder(self, join_train=False):
         self.embedder.train()
         self.recovery.train()
         self.optim_embedder.zero_grad()
@@ -130,7 +122,7 @@ class Timegan:
         self.optim_generator.step()
         self.optim_supervisor.step()
 
-    def train_generator(self):
+    def train_generator(self, join_train=False):
         # G_solver
         self.optim_generator.zero_grad()
         self.optim_supervisor.zero_grad()
