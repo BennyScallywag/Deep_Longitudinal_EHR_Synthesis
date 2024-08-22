@@ -74,7 +74,8 @@ class DP_Discriminator(nn.Module):
         super(DP_Discriminator, self).__init__()
         # Initialize the LSTM layer and FC layer, sigmoid activation
         self.lstm = opacus.layers.DPGRU(hidden_dim, hidden_dim, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_dim, 1)
+        #self.fc = nn.Linear(hidden_dim, 1)
+        self.fc = nn.Linear(hidden_dim, hidden_dim)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):

@@ -1,6 +1,7 @@
 import numpy as np
 from timegan import Timegan
-from Train_and_Test import train, test, dp_train
+#from Train_and_Test import train, test, dp_train
+from TT2 import train, test, dp_train
 from torch_dataloading import real_data_loading, sine_data_generation
 import os
 import pandas as pd

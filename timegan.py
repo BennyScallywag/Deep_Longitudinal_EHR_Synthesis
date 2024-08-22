@@ -41,7 +41,7 @@ class Timegan:
         self.embedder = Embedder(self.params['input_dim'], self.params['hidden_dim'], self.params['num_layers']).to(self.device)
         self.recovery = Recovery(self.params['hidden_dim'], self.params['input_dim'], self.params['num_layers']).to(self.device)
         self.generator = Generator(self.params['input_dim'], self.params['hidden_dim'], self.params['num_layers']).to(self.device)
-        self.supervisor = Supervisor(self.params['hidden_dim'], (self.params['num_layers']-1)).to(self.device)
+        self.supervisor = Supervisor(self.params['hidden_dim'], self.params['num_layers']).to(self.device)
         self.discriminator = Discriminator(self.params['hidden_dim'], self.params['num_layers']).to(self.device)
 
         # Create and initialize optimizer.

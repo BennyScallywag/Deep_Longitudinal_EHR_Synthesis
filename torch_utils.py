@@ -163,7 +163,7 @@ def batch_generator(data, time, batch_size):
     batch_data = nn.utils.rnn.pad_sequence(batch_data, batch_first=True)
     return batch_data, batch_time
 
-def save_results_to_excel(filename, metric_results, opt):
+def save_results_to_excel(filename, metric_results, latent_results, opt):
     """
     Save the metric results to an Excel file.
 
@@ -188,6 +188,8 @@ def save_results_to_excel(filename, metric_results, opt):
         "#Epochs": [opt.iterations],
         "Noise SD": [opt.noise_sd],
         "Metric Trials": [opt.metric_iteration],
+        "MMD": [latent_results['MMD']],
+        "Mahalanobis": [latent_results['Mahalanobis Distance']],
         "Discrim. Score": [metric_results['discriminative']],
         "Pred. Score": [metric_results['predictive']],
         #"Sequence Length": [opt.seq_len],

@@ -2,8 +2,8 @@ import argparse
 import numpy as np
 
 # 1. Training model
-from Train_and_Test import train, dp_train, test
-#from TT2 import train, dp_train, test
+#from Train_and_Test import train, dp_train, test
+from TT2 import train, dp_train, test
 # 2. Data loading
 from torch_dataloading import real_data_loading, sine_data_generation
 import os
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     # Network parameters (should be optimized for different datasets)
     parser.add_argument('--module', choices=['gru', 'lstm'], default='gru', type=str)
     parser.add_argument('--hidden_dim', type=int, default=24, help='hidden state dimensions')
-    parser.add_argument('--num_layer', type=int, default=2, help='number of layers')
+    parser.add_argument('--num_layer', type=int, default=3, help='number of layers')
     # Model training and testing parameters
     parser.add_argument('--gamma', type=float, default=1, help='gamma weight for G_loss and D_loss')
     parser.add_argument('--lr', type=float, default=0.001, help='initial learning rate for adam')
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=128, help='the number of samples in mini-batch')
     parser.add_argument('--synth_size', type=int, default=500, help='the number of samples in synthetic data, '
                                                                   '0--len(ori_data)')
-    parser.add_argument('--metric_iteration', type=int, default=5, help='iterations of the metric computation')
+    parser.add_argument('--metric_iteration', type=int, default=3, help='iterations of the metric computation')
     parser.add_argument('--noise_sd', type=float, default=0.2, help='Standard deviation of discriminator noise injection')
     # Save and Load
     parser.add_argument('--data_dir', type=str, default="./data", help='path to stock and energy data')   #can remove?

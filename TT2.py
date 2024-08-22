@@ -7,6 +7,7 @@ from metrics.torch_discriminative_metric import discriminative_score_metrics
 from metrics.torch_predictive_metric import predictive_score_metrics
 #from metrics.torch_visualization_metric import visualization
 import Plotting_and_Visualization as pv
+import latent_representation as latent
 import torch_utils as tu
 import pandas as pd
 import torch
@@ -27,13 +28,19 @@ def train(ori_data, opt, checkpoint_file):
     # 1. Embedding network training
     print('Start Embedding Network Training')
     for i in range(model.start_epoch['embedding'], opt.iterations):
+        Etotal_loss, Ebatch_count = 0, 0
         for X_batch in model.dataloader:
-            model.X = X_batch.float().to(model.device)
+            model.X = X_batch.float()#.to(model.device)
             model.gen_batch()
             model.forward_embedder_recovery()
             model.train_embedder()
+
+            Etotal_loss += np.sqrt(model.E_loss_T0.item())
+            Ebatch_count += 1
+        Eaverage_loss = Etotal_loss / Ebatch_count
         if (i) % 100 == 0:
-            print(f'step: {str(i)}/{str(opt.iterations)}, e_loss: {str(np.round(np.sqrt(model.E_loss_T0.item()), 4))}')
+            #print(f'step: {str(i)}/{str(opt.iterations)}, e_loss: {str(np.round(np.sqrt(model.E_loss_T0.item()), 4))}')
+            print(f'step: {str(i)}/{str(opt.iterations)}, average_e_loss: {str(np.round(Eaverage_loss, 4))}')
         
         if (i+1) % 1000 == 0 or i==(opt.iterations-1):
             phase1_epochnum = {'embedding': i+1, 'supervisor': 0, 'joint': 0}
@@ -46,13 +53,20 @@ def train(ori_data, opt, checkpoint_file):
     # 2. Training only with supervised loss
     print('Start Training with Supervised Loss Only')
     for i in range(model.start_epoch['supervisor'],opt.iterations):
+        Stotal_loss, Sbatch_count = 0, 0
         for X_batch in model.dataloader:
-            model.X = X_batch.float().to(model.device)
+            model.X = X_batch.float()#.to(model.device)
             model.gen_batch()
             model.forward_supervisor()
             model.train_supervisor()
+
+            Stotal_loss += np.sqrt(model.G_loss_S.item())
+            Sbatch_count += 1
+        Saverage_loss = Stotal_loss / Sbatch_count
         if (i) % 100 == 0:
-            print(f'step: {str(i)}/{str(opt.iterations)},  g_loss_s: {str(np.round(np.sqrt(model.G_loss_S.item()), 4))}')
+            #print(f'step: {str(i)}/{str(opt.iterations)},  g_loss_s: {str(np.round(np.sqrt(model.G_loss_S.item()), 4))}')
+            print(f'step: {str(i)}/{str(opt.iterations)}, average_s_loss: {str(np.round(Saverage_loss, 4))}')
+
         
         if (i+1) % 1000 == 0 or i==(opt.iterations-1):
             phase2_epochnum = {'embedding': opt.iterations, 'supervisor': i+1, 'joint': 0}
@@ -62,8 +76,9 @@ def train(ori_data, opt, checkpoint_file):
     # 3. Joint Training
     print('Start Joint Training')
     for i in range(model.start_epoch['joint'], opt.iterations):
+        Gtotal_loss, Dtotal_loss, Jbatch_count = 0, 0, 0
         for X_batch in model.dataloader:
-            model.X = X_batch.float().to(model.device)
+            model.X = X_batch.float()#.to(model.device)
             for kk in range(2):
                 model.gen_batch()
                 model.forward_generator_discriminator()
@@ -74,15 +89,22 @@ def train(ori_data, opt, checkpoint_file):
             model.gen_batch()
             model.forward_generator_discriminator()
             model.train_discriminator()
+            
+            Gtotal_loss += model.G_loss.item()
+            Dtotal_loss += model.D_loss.item()
+            Jbatch_count += 1
+        Gaverage_loss = Gtotal_loss / Jbatch_count if Jbatch_count > 0 else 0
+        Daverage_loss = Dtotal_loss / Jbatch_count if Jbatch_count > 0 else 0
 
         # Print multiple checkpoints
-        if (i) % 100 == 0:
+        if (i) % 10 == 0:
             print(
                 f'step: {i}/{opt.iterations}, '
-                f'd_loss: {np.round(model.D_loss.item(), 4)}, '
-                f'g_loss_u: {np.round(model.G_loss_U.item(), 4)}, '
-                f'g_loss_v: {np.round(model.G_loss_V.item(), 4)}, '
-                f'e_loss_t0: {np.round(np.sqrt(model.E_loss_T0.item()), 4)}'
+                f'd_loss: {np.round(Daverage_loss, 4)}, '
+                f'g_loss: {np.round(Gaverage_loss, 4)}, '
+                #f'g_loss_u: {np.round(model.G_loss_U.item(), 4)}, '
+                #f'g_loss_v: {np.round(model.G_loss_V.item(), 4)}, '
+                #f'e_loss_t0: {np.round(np.sqrt(model.E_loss_T0.item()), 4)}'
             )
 
         if (i+1) % 1000 == 0 or i==(opt.iterations-1):
@@ -165,16 +187,13 @@ def dp_train(ori_data, opt, checkpoint_file, delta=1e-5):
     return {'epsilon': opt.eps, 'delta': delta}
 
 def test(ori_data, opt, filename, privacy_params=None):
-    """
-    Test the TimeGAN model by generating synthetic data and evaluating its performance using discriminative 
+    """Test the TimeGAN model by generating synthetic data and evaluating its performance using discriminative 
     and predictive scores, followed by visualization using PCA and t-SNE.
-
-    Args:
+    ----------Inputs-----------
         ori_data (np.ndarray): The original data used for generating synthetic data and evaluation.
         opt (Namespace): The options/parameters for testing, including synthetic data size and metric iterations.
         filename (str): The file path for saving the visualization output.
     """
-
     print('Start Testing')
     if opt.use_dp:
         model = DP_Timegan(ori_data, opt, filename)
@@ -191,19 +210,17 @@ def test(ori_data, opt, filename, privacy_params=None):
 
     # Performance metrics
     metric_results = dict()
+    predictive_score, discriminative_score = list(), list()
     # 1. Discriminative Score
-    discriminative_score = list()
     print('Start discriminative_score_metrics')
     for i in range(opt.metric_iteration):
         print('discriminative_score iteration: ', i)
         temp_disc = discriminative_score_metrics(ori_data, gen_data)
         discriminative_score.append(temp_disc)
-
     metric_results['discriminative'] = np.mean(discriminative_score)
     print('Finish discriminative_score_metrics compute')
 
     # 2. Predictive score
-    predictive_score = list()
     print('Start predictive_score_metrics')
     for i in range(opt.metric_iteration):
         print('predictive_score iteration: ', i)
@@ -212,12 +229,19 @@ def test(ori_data, opt, filename, privacy_params=None):
     metric_results['predictive'] = np.mean(predictive_score)
     print('Finish predictive_score_metrics compute')
 
+    # Latent Representation Metrics
+    print('Start latent representation metrics')
+    ori_data, gen_data = torch.tensor(np.array(ori_data), dtype=torch.float32), torch.tensor(np.array(gen_data), dtype=torch.float32)
+    latent_metric_results = latent.evaluate_latent_metrics(ori_data, gen_data, opt.hidden_dim, training_epochs=5000)
+    print('Finish latent representation metrics')
+
     if opt.sample_to_excel:
         tu.sample_synthetic_table_to_excel(gen_data, opt, filename, num_series=5)
     
-    tu.save_results_to_excel(f'{filename}', metric_results, opt)
+    tu.save_results_to_excel(f'{filename}', metric_results, latent_metric_results, opt)
 
-    print(metric_results)
+    print(f'Utility Results: {metric_results}')
+    print(f'Latent Results: {latent_metric_results}')
     print(f'Iterations: {opt.iterations}, Data Name: {opt.data_name}, DP Enabled: {opt.use_dp}')
     if opt.use_dp and privacy_params:
         epsilon = privacy_params.get("epsilon", "N/A")
