@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch_dataloading import sine_data_generation
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
+import torch_utils as tu
 from sklearn.metrics.pairwise import rbf_kernel
 from scipy.spatial.distance import mahalanobis
 
@@ -57,11 +58,12 @@ def train_representation(original_data, hidden_dim, epochs=5000):
     epochs (int): number of training epochs
     --------Returns: Trained models--------
     '''
+    device = tu.get_device()
     seq_len, num_features = original_data.size(1), original_data.size(2)
     real_dataloader = DataLoader(original_data, batch_size=128, shuffle=False)        #Batch is first!
     
-    embedder = Embed(num_features, hidden_dim)
-    recovery = Recover(hidden_dim, num_features, seq_len)
+    embedder = Embed(num_features, hidden_dim).to(device)
+    recovery = Recover(hidden_dim, num_features, seq_len).to(device)
     
     embedder_optimizer = torch.optim.Adam(embedder.parameters(), lr=0.001)
     recovery_optimizer = torch.optim.Adam(recovery.parameters(), lr=0.001)
@@ -71,6 +73,7 @@ def train_representation(original_data, hidden_dim, epochs=5000):
     #Train the nets together
     for epoch in range(epochs):
         for data in real_dataloader:
+            data = data.float().to(device)
             embedder_optimizer.zero_grad()
             recovery_optimizer.zero_grad()
             

@@ -12,9 +12,24 @@ import torch.optim as optim
 import numpy as np
 from internal_networks import Embedder, Recovery, Generator, Supervisor, Discriminator
 import os
-#from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, Dataset
 #import subprocess
 import torch_utils as tu
+
+# class InMemoryDataset(Dataset):
+#     def __init__(self, data, times=None, device='cpu'):
+#         # Load data into memory and send it to the specified device
+#         self.data = torch.tensor(data, dtype=torch.float32).to(device)
+#         self.times = torch.tensor(times, dtype=torch.float32).to(device) if times is not None else None
+
+#     def __len__(self):
+#         return len(self.data)
+
+#     def __getitem__(self, idx):
+#         if self.times is not None:
+#             return self.data[idx], self.times[idx]  # Returning tensors directly
+#         else:
+#             return self.data[idx]  # Returning tensor directly
 
 class Timegan:
     def __init__(self, original_data, opt, checkpoint_file):
@@ -24,6 +39,14 @@ class Timegan:
         self.ori_time, self.max_seq_len = tu.extract_time(self.ori_data)
         self.no, self.seq_len, self.z_dim = np.asarray(original_data).shape
         self.opt = opt
+
+        #self.dataset = InMemoryDataset(self.ori_data, device=self.device)
+        #data_tensor = torch.tensor(np.array(self.ori_data), dtype=torch.float32)
+        #self.dataset = TensorDataset(data_tensor)
+        self.dataloader = DataLoader(self.ori_data, batch_size=self.opt.batch_size, shuffle=False)
+
+        # self.dataset = TensorDataset(data_tensor, time_tensor)
+        #self.dataloader = DataLoader(self.dataset, batch_size=self.opt.batch_size, shuffle=False)
 
         # Create and initialize networks.
         self.params = dict()
@@ -61,13 +84,14 @@ class Timegan:
 
     def gen_batch(self):
         # Set training batch
-        self.X, self.T = tu.batch_generator(self.ori_data, self.ori_time, self.opt.batch_size)
-        self.X = torch.tensor(np.array(self.X), dtype=torch.float32).to(self.device)
+        #self.X, self.T = tu.batch_generator(self.ori_data, self.ori_time, self.opt.batch_size)
+        #self.X = torch.tensor(np.array(self.X), dtype=torch.float32).to(self.device)
+        
         # Random vector generation
-        self.Z = tu.random_generator(self.opt.batch_size, self.params['input_dim'], self.T, self.max_seq_len)
-        self.Z = torch.tensor(np.array(self.Z), dtype=torch.float32).to(self.device)
+        #self.Z = tu.random_generator(self.opt.batch_size, self.params['input_dim'], self.T, self.max_seq_len)
+        #self.Z = torch.tensor(np.array(self.Z), dtype=torch.float32).to(self.device)
+        self.Z = torch.rand(self.opt.batch_size, self.X.size(1), self.params['input_dim'], dtype=torch.float32).to(self.device)
 
-        # total networks forward
     def forward_embedder_recovery(self):
         """Forward pass for embedding and recovery networks."""
         self.H = self.embedder(self.X)
@@ -93,9 +117,10 @@ class Timegan:
         self.noisyY_fake = self.discriminator(self.H_hat + torch.normal(mean=0, std=self.noise_sd, size=self.H_hat.size()).to(self.device))
         self.noisyY_fake_e = self.discriminator(self.E_hat + torch.normal(mean=0, std=self.noise_sd, size=self.E_hat.size()).to(self.device))
     
-    def gen_synth_data(self, batch_size):
-        self.Z = tu.random_generator(batch_size, self.params['input_dim'], self.ori_time, self.max_seq_len)
-        self.Z = torch.tensor(self.Z, dtype=torch.float32).to(self.device)
+    def gen_synth_data(self, synth_size):
+        #self.Z = tu.random_generator(batch_size, self.params['input_dim'], self.ori_time, self.max_seq_len)
+        #self.Z = torch.tensor(self.Z, dtype=torch.float32).to(self.device)
+        self.Z = torch.rand(self.opt.synth_size, self.max_seq_len, self.params['input_dim'], dtype=torch.float32).to(self.device)
 
         self.E_hat = self.generator(self.Z)
         self.H_hat = self.supervisor(self.E_hat)
@@ -105,7 +130,7 @@ class Timegan:
 
         return self.X_hat
     
-    def train_embedder(self):
+    def train_embedder(self, join_train=False):
         self.embedder.train()
         self.recovery.train()
         self.optim_embedder.zero_grad()
@@ -134,8 +159,10 @@ class Timegan:
         # G_solver
         self.optim_generator.zero_grad()
         self.optim_supervisor.zero_grad()
-        self.G_loss_U = self.BCELoss(self.Y_fake, torch.ones_like(self.Y_fake))
-        self.G_loss_U_e = self.BCELoss(self.Y_fake_e, torch.ones_like(self.Y_fake_e))
+        #self.G_loss_U = self.BCELoss(self.Y_fake, torch.ones_like(self.Y_fake))
+        #self.G_loss_U_e = self.BCELoss(self.Y_fake_e, torch.ones_like(self.Y_fake_e))
+        self.G_loss_U = -torch.mean(torch.log(self.Y_fake))   #, torch.ones_like(self.Y_fake))
+        self.G_loss_U_e = -torch.mean(torch.log(self.Y_fake_e)) #self.BCELoss(self.Y_fake_e, torch.ones_like(self.Y_fake_e))
 
         #testing
         #self.G_loss_V1 = torch.mean(torch.abs(torch.sqrt(torch.std(self.X_hat, [0])[1] + 1e-6) - torch.sqrt(
@@ -166,7 +193,7 @@ class Timegan:
     def train_discriminator(self):
         # D_solver
         self.discriminator.train()
-        self.optim_discriminator.zero_grad()
+        self.optim_discriminator.zero_grad(set_to_none=True)
         
         self.D_loss_real = self.BCELoss(self.noisyY_real, torch.ones_like(self.Y_real))
         self.D_loss_fake = self.BCELoss(self.noisyY_fake, torch.zeros_like(self.Y_fake))

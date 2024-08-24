@@ -1,7 +1,7 @@
 import numpy as np
-from timegan import Timegan
-#from Train_and_Test import train, test, dp_train
-from TT2 import train, test, dp_train
+#from timegan_old import Timegan
+#from TT_old import train, test, dp_train
+from Train_and_Test import train, test, dp_train
 from torch_dataloading import real_data_loading, sine_data_generation
 import os
 import pandas as pd
@@ -31,7 +31,7 @@ class Options:
 
 # ----------------CHANGE THESE (INPUTS)------------------
 opt = Options(
-    epochs=22,              #number of epochs
+    epochs=39,              #number of epochs
     sine_no=1000,            #number of training time-series's if using the 'sines' data
     hidden_dim=24,           #dimension of the latent space
     num_layer=3,             #number of hidden layers in each network
@@ -39,7 +39,7 @@ opt = Options(
     seq_len = 24,            #sequence length
     data_name = 'ckd',    #which dataset to use, options are 'sines', 'stocks', and 'ckd'
     noise_sd=0.2,            #standard deviation of noise added to the disriminator inputs during training
-    use_dp = True,           #whether to use differentially private training
+    use_dp = False,           #whether to use differentially private training
     eps = 15,                 #epsilon value for differential privacy
     delta = 1e-5,             #delta value for differential privacy
     gamma = 1,               #relative weight of generator loss to discriminator loss during training

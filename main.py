@@ -2,15 +2,14 @@ import argparse
 import numpy as np
 
 # 1. Training model
-#from Train_and_Test import train, dp_train, test
-from TT2 import train, dp_train, test
+#from TT_old import train, dp_train, test
+from Train_and_Test import train, dp_train, test
 # 2. Data loading
 from torch_dataloading import real_data_loading, sine_data_generation
 import os
 import pandas as pd
 import time
 
-start_time = time.time()
 def main(opt, checkpoint_filename):
     start_time = time.time()
     # Data loading
@@ -48,12 +47,14 @@ def main(opt, checkpoint_filename):
     else:
         if opt.use_dp:
             privacy_params = dp_train(ori_data, opt, checkpoint_filename, delta=1e-5)
+            end_time = time.time()
             test(ori_data, opt, checkpoint_filename, privacy_params)
         else:
             train(ori_data, opt, checkpoint_filename)
+            end_time = time.time()
             test(ori_data, opt, checkpoint_filename)
 
-    end_time = time.time()
+    
     print(f"Time taken: {end_time - start_time} seconds")
 
 
