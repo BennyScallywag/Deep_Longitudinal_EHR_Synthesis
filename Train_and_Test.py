@@ -249,6 +249,6 @@ def test(ori_data, opt, filename, privacy_params=None):
         print(f"(ε = {epsilon:.2f}, δ = {delta})")
     
     # 3. Visualization (PCA and tSNE)
-    pv.plot_4pane(ori_data, gen_data, filename=f'{filename}.pdf')
+    pv.plot_4pane(ori_data, gen_data, filename=f'{filename}.pdf', num_samples=opt.num_samples_plotted)
 
 

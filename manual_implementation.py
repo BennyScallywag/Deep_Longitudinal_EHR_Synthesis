@@ -9,7 +9,7 @@ import pandas as pd
 class Options:
     def __init__(self, epochs, sine_no, hidden_dim, num_layer, lr, seq_len, data_name, gamma, batch_size, filename_prefix, 
                  module='gru', synth_size=100, metric_iteration=2, noise_sd = 0.2, use_dp=False, eps=15, delta=1e-5,
-                 sample_to_excel=False):
+                 sample_to_excel=False, num_samples_plotted = 15):
         self.iterations = epochs
         self.sine_no = sine_no
         self.hidden_dim = hidden_dim
@@ -28,6 +28,7 @@ class Options:
         self.eps = eps
         self.delta = delta
         self.sample_to_excel = sample_to_excel
+        self.num_samples_plotted = num_samples_plotted
 
 # ----------------CHANGE THESE (INPUTS)------------------
 opt = Options(
@@ -42,9 +43,10 @@ opt = Options(
     use_dp = False,           #whether to use differentially private training
     eps = 15,                 #epsilon value for differential privacy
     delta = 1e-5,             #delta value for differential privacy
-    gamma = 1,               #relative weight of generator loss to discriminator loss during training
+    gamma = 1,                #relative weight of generator loss to discriminator loss during training
+    num_samples_plotted=15,   #number of samples to plot in the 4-pane plot
     batch_size = 128,
-    filename_prefix = ''     #IMPORTANT: prefix to add to checkpoint filename, this ensures that you dont overwrite an existing checkpoint if using the same parameters
+    filename_prefix = ''      #IMPORTANT: prefix to add to checkpoint filename, this ensures that you dont overwrite an existing checkpoint if using the same parameters
 )
 #---------------------------------------------------------
 

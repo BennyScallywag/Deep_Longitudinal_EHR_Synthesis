@@ -60,6 +60,7 @@ def train_representation(original_data, hidden_dim, epochs=5000):
     '''
     device = tu.get_device()
     seq_len, num_features = original_data.size(1), original_data.size(2)
+    original_data = original_data.to(device)
     real_dataloader = DataLoader(original_data, batch_size=128, shuffle=False)        #Batch is first!
     
     embedder = Embed(num_features, hidden_dim).to(device)

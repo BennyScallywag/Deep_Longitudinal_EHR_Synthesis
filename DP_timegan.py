@@ -268,8 +268,8 @@ class DP_Timegan:
         supervised_fake_data = self.supervisor(raw_fake_data)
         self.X_hat = self.recovery(supervised_fake_data)        #recovering for statistics loss
 
-        real_labels = torch.ones(H_batch_size, 1).to(self.device)
-        fake_labels = torch.zeros(H_batch_size, 1).to(self.device)
+        real_labels = torch.ones(H_batch_size, self.max_seq_len).to(self.device)
+        fake_labels = torch.zeros(H_batch_size, self.max_seq_len).to(self.device)
 
         #Real, Fake, and Raw Fake Data into Discriminator, compute losses
         # real_output = self.discriminator(self.H)

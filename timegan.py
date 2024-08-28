@@ -117,7 +117,7 @@ class Timegan:
         self.noisyY_fake = self.discriminator(self.H_hat + torch.normal(mean=0, std=self.noise_sd, size=self.H_hat.size()).to(self.device))
         self.noisyY_fake_e = self.discriminator(self.E_hat + torch.normal(mean=0, std=self.noise_sd, size=self.E_hat.size()).to(self.device))
     
-    def gen_synth_data(self, synth_size):
+    def gen_synth_data(self):
         #self.Z = tu.random_generator(batch_size, self.params['input_dim'], self.ori_time, self.max_seq_len)
         #self.Z = torch.tensor(self.Z, dtype=torch.float32).to(self.device)
         self.Z = torch.rand(self.opt.synth_size, self.max_seq_len, self.params['input_dim'], dtype=torch.float32).to(self.device)

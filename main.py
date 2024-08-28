@@ -95,6 +95,7 @@ if __name__ == '__main__':
     parser.add_argument('--synth_size', type=int, default=500, help='the number of samples in synthetic data, '
                                                                   '0--len(ori_data)')
     parser.add_argument('--metric_iteration', type=int, default=3, help='iterations of the metric computation')
+    parser.add_argument('--num_samples_plotted', type=int, default=15, help='Number of lines to plot in the 4-pane plot')
     parser.add_argument('--noise_sd', type=float, default=0.2, help='Standard deviation of discriminator noise injection')
     # Save and Load
     parser.add_argument('--data_dir', type=str, default="./data", help='path to stock and energy data')   #can remove?

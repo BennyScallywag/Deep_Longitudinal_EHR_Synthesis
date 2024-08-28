@@ -1,25 +1,7 @@
-"""Time-series Generative Adversarial Networks (TimeGAN) Codebase.
-
-Reference: Jinsung Yoon, Daniel Jarrett, Mihaela van der Schaar, 
-"Time-series Generative Adversarial Networks," 
+'''Extracted directly from the original codebase:
+J. Yoon, D. Jarrett, M. van der Schaar, "Time-series Generative Adversarial Networks," 
 Neural Information Processing Systems (NeurIPS), 2019.
-
-Paper link: https://papers.nips.cc/paper/8789-time-series-generative-adversarial-networks
-
-Last updated Date: April 24th 2020
-Code author: Jinsung Yoon (jsyoon0823@gmail.com)
-
------------------------------
-
-data_loading.py
-
-(0) MinMaxScaler: Min Max normalizer
-(1) sine_data_generation: Generate sine dataset
-(2) real_data_loading: Load and preprocess real data
-  - stock_data: https://finance.yahoo.com/quote/GOOG/history?p=GOOG
-  - energy_data: http://archive.ics.uci.edu/ml/datasets/Appliances+energy+prediction
-"""
-
+'''
 ## Necessary Packages
 import numpy as np
 import os
@@ -101,7 +83,7 @@ def real_data_loading (data_name, seq_len):
   # Flip the data to make chronological data
   ori_data = ori_data[::-1]
   # Normalize the data
-  ori_data = MinMaxScaler(ori_data)
+  #ori_data = MinMaxScaler(ori_data)
     
   # Preprocess the dataset
   temp_data = []    

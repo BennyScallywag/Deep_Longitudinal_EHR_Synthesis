@@ -3,7 +3,7 @@ import numpy as np
 
 # Function to set up consistent plot formatting - this is the most important part,
 #can call this wherever I am plotting something
-def set_plot_formatting(use_tex=True, font_family='serif', font_size=11):
+def set_plot_formatting(use_tex=True, font_family='serif', font_size=12):
     plt.rcParams.update({
         "text.usetex": use_tex,
         "font.family": font_family,
@@ -11,8 +11,8 @@ def set_plot_formatting(use_tex=True, font_family='serif', font_size=11):
         "font.size": font_size,
         "axes.titlesize": font_size,
         "axes.labelsize": font_size,
-        "xtick.labelsize": font_size,
-        "ytick.labelsize": font_size,
+        "xtick.labelsize": font_size-2,
+        "ytick.labelsize": font_size-2,
         "legend.fontsize": font_size,
         "figure.titlesize": font_size,
         "axes.grid": False,
