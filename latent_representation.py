@@ -60,11 +60,11 @@ def train_representation(original_data, hidden_dim, epochs=5000):
     '''
     device = tu.get_device()
     seq_len, num_features = original_data.size(1), original_data.size(2)
-    original_data = original_data.to(device)
+    #original_data = original_data.to(device)
     real_dataloader = DataLoader(original_data, batch_size=128, shuffle=False)        #Batch is first!
     
-    embedder = Embed(num_features, hidden_dim).to(device)
-    recovery = Recover(hidden_dim, num_features, seq_len).to(device)
+    embedder = Embed(num_features, hidden_dim)#.to(device)
+    recovery = Recover(hidden_dim, num_features, seq_len)#.to(device)
     
     embedder_optimizer = torch.optim.Adam(embedder.parameters(), lr=0.001)
     recovery_optimizer = torch.optim.Adam(recovery.parameters(), lr=0.001)
@@ -74,7 +74,7 @@ def train_representation(original_data, hidden_dim, epochs=5000):
     #Train the nets together
     for epoch in range(epochs):
         for data in real_dataloader:
-            data = data.float().to(device)
+            data = data.float()#.to(device)
             embedder_optimizer.zero_grad()
             recovery_optimizer.zero_grad()
             
@@ -134,6 +134,32 @@ def compute_mahalanobis(real_data, synthetic_data):
     
     return mahalanobis_dist
 
+
+def compute_dcr(real_data, synthetic_data):
+    """
+    Compute the Distance to Closest Record (DCR) for embedded synthetic data.
+    ----------Inputs-----------
+    real_data: 2D tensor of shape (num_real_samples, hidden_dimension)
+    synthetic_data: 2D tensor of shape (num_synthetic_samples, hidden_dimension)
+    ---------Returns-----------
+    float: DCR value
+    """
+    num_real_samples = real_data.shape[0]
+    num_synthetic_samples = synthetic_data.shape[0]
+
+    min_distances = []
+
+    for i in range(num_synthetic_samples):
+        synthetic_record = synthetic_data[i]
+        distances = torch.sqrt(torch.sum((real_data - synthetic_record) ** 2, dim=1))
+        min_distance = torch.min(distances)
+        min_distances.append(min_distance.item())
+
+    # Compute the average of the minimum distances
+    dcr = np.mean(min_distances)
+    
+    return dcr
+
 def evaluate_latent_metrics(original_data, synthetic_data, hidden_dim, training_epochs):
     '''Evaluate the latent space representation of the original data
     using the embedder and recovery networks
@@ -153,7 +179,8 @@ def evaluate_latent_metrics(original_data, synthetic_data, hidden_dim, training_
 
     mmd = compute_mmd(H.detach().numpy(), H_hat.detach().numpy())
     mahalanobis_dist = compute_mahalanobis(H.detach().numpy(), H_hat.detach().numpy())
-    latent_metric_results = {'MMD': mmd, 'Mahalanobis Distance': mahalanobis_dist}
+    dcr = compute_dcr(H, H_hat)
+    latent_metric_results = {'MMD': mmd, 'Mahalanobis Distance': mahalanobis_dist, 'DCR': dcr}
     print(latent_metric_results)
 
     return latent_metric_results

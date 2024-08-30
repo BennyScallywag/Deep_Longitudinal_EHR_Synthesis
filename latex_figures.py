@@ -3,7 +3,7 @@ import numpy as np
 
 # Function to set up consistent plot formatting - this is the most important part,
 #can call this wherever I am plotting something
-def set_plot_formatting(use_tex=True, font_family='serif', font_size=12):
+def set_plot_formatting(use_tex=True, font_family='serif', font_size=12, bold_axis_labels=False):
     plt.rcParams.update({
         "text.usetex": use_tex,
         "font.family": font_family,
@@ -11,13 +11,14 @@ def set_plot_formatting(use_tex=True, font_family='serif', font_size=12):
         "font.size": font_size,
         "axes.titlesize": font_size,
         "axes.labelsize": font_size,
-        "xtick.labelsize": font_size-2,
-        "ytick.labelsize": font_size-2,
+        "xtick.labelsize": font_size - 2,
+        "ytick.labelsize": font_size - 2,
         "legend.fontsize": font_size,
         "figure.titlesize": font_size,
         "axes.grid": False,
         "grid.alpha": 0.5,
-        "lines.linewidth": 1
+        "lines.linewidth": 1,
+        "axes.labelweight": 'bold' if bold_axis_labels else 'normal'  # Set font weight for axis labels
     })
 
 # Function to plot data

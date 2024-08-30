@@ -202,7 +202,7 @@ def test(ori_data, opt, filename, privacy_params=None):
 
     # Synthetic data generation
     synth_size = min(opt.synth_size, len(ori_data))
-    generated_data = model.gen_synth_data(synth_size)
+    generated_data = model.gen_synth_data()
     generated_data = generated_data.cpu().detach().numpy()
     gen_data = [generated_data[i, :opt.seq_len, :] for i in range(synth_size)]
     gen_data = np.array([(data * model.max_val) + model.min_val for data in gen_data])
@@ -231,8 +231,10 @@ def test(ori_data, opt, filename, privacy_params=None):
 
     # Latent Representation Metrics
     print('Start latent representation metrics')
-    ori_data, gen_data = torch.tensor(np.array(ori_data), dtype=torch.float32), torch.tensor(np.array(gen_data), dtype=torch.float32)
-    latent_metric_results = latent.evaluate_latent_metrics(ori_data, gen_data, opt.hidden_dim, training_epochs=5000)
+    latent_metric_results = {'MMD': 0, 'Mahalanobis Distance': 0, 'DCR': 0}
+    if opt.metric_iteration > 0:
+        ori_data, gen_data = torch.tensor(np.array(ori_data), dtype=torch.float32), torch.tensor(np.array(gen_data), dtype=torch.float32)
+        latent_metric_results = latent.evaluate_latent_metrics(ori_data, gen_data, opt.hidden_dim, training_epochs=5000)
     print('Finish latent representation metrics')
 
     if opt.sample_to_excel:

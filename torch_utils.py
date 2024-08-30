@@ -190,6 +190,7 @@ def save_results_to_excel(filename, metric_results, latent_results, opt):
         "Metric Trials": [opt.metric_iteration],
         "MMD": [latent_results['MMD']],
         "Mahalanobis": [latent_results['Mahalanobis Distance']],
+        "DCR": [latent_results['DCR']],
         "Discrim. Score": [metric_results['discriminative']],
         "Pred. Score": [metric_results['predictive']],
         #"Sequence Length": [opt.seq_len],
