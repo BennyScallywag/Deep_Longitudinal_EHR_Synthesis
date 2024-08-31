@@ -128,7 +128,8 @@ def dp_train(ori_data, opt, checkpoint_file, delta=1e-5):
     print('Start Embedding Network Training')
     for i in range(model.start_epoch['embedding'], opt.iterations):
         model.gen_batch()
-        model.batch_forward()
+        #model.batch_forward()
+        model.forward_embedder_recovery()
         model.train_embedder()
         if (i) % 100 == 0:
             print(f'step: {str(i)}/{str(opt.iterations)}, e_loss: {str(np.round(np.sqrt(model.E_loss_T0.item()), 4))}')
@@ -143,7 +144,8 @@ def dp_train(ori_data, opt, checkpoint_file, delta=1e-5):
     print('Start Training with Supervised Loss Only')
     for i in range(model.start_epoch['supervisor'],opt.iterations):
         model.gen_batch()
-        model.batch_forward()
+        #model.batch_forward()
+        model.forward_supervisor()
         model.train_supervisor()
         if (i) % 100 == 0:
             print(f'step: {str(i)}/{str(opt.iterations)},  g_loss_s: {str(np.round(np.sqrt(model.G_loss_S.item()), 4))}')

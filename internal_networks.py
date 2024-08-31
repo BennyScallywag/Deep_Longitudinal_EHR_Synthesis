@@ -80,10 +80,10 @@ class DP_Discriminator(nn.Module):
 
     def forward(self, x):
         # LSTM forward pass
-        lstm_out, _ = self.lstm(x)
+        out, _ = self.lstm(x)
         
         # Take the output from the last time step
-        out = lstm_out[:, -1, :]  # Shape: (batch_size, hidden_dim)
+        #out = lstm_out[:, -1, :]  # Shape: (batch_size, hidden_dim)
         #^^^ this gives the output of the last hidden state, otherwise out would have shape (Batch#, seq_len, hidden_dim)
         #i.e. one array for each time step
         

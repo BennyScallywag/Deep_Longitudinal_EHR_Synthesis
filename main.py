@@ -99,7 +99,7 @@ if __name__ == '__main__':
     parser.add_argument('--noise_sd', type=float, default=0.2, help='Standard deviation of discriminator noise injection')
     # Save and Load
     parser.add_argument('--data_dir', type=str, default="./data", help='path to stock and energy data')   #can remove?
-    parser.add_argument('--networks_dir', type=str, default="./trained_networks", help='path to checkpoint')    #can remove?
+    parser.add_argument('--checkpoint', type=str, default=None, help='path to checkpoint')
     parser.add_argument('--output_dir', type=str, default="./output", help='folder to output metrics and images')   #remove and replace with regular plot folder logic
     parser.add_argument('--filename_additions', type=str, default="", help='prefix for checkpoint filename')
     # Model running parameters
@@ -112,8 +112,9 @@ if __name__ == '__main__':
 
     # Call main function
     opt = parser.parse_args()
-    no = f'_no{opt.sine_no}' if opt.data_name == 'sines' else ''
-    dp = 'DP_' if opt.use_dp else ''
-    checkpoint_filename = f'{dp}e{opt.iterations}{no}_l{opt.num_layer}_noise{opt.noise_sd}_{opt.data_name}_{str(opt.filename_additions)}'
-
+    if opt.checkpoint is None:
+        no = f'_no{opt.sine_no}' if opt.data_name == 'sines' else ''
+        dp = 'DP_' if opt.use_dp else ''
+        checkpoint_filename = f'{dp}e{opt.iterations}{no}_l{opt.num_layer}_noise{opt.noise_sd}_{opt.data_name}_{str(opt.filename_additions)}'
+        
     main(opt, checkpoint_filename)

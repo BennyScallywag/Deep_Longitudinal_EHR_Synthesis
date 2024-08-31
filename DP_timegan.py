@@ -151,8 +151,8 @@ class DP_Timegan:
         self.noisyY_fake = self.discriminator(self.H_hat + torch.normal(mean=0, std=self.noise_sd, size=self.H_hat.size()).to(self.device))
         self.noisyY_fake_e = self.discriminator(self.E_hat + torch.normal(mean=0, std=self.noise_sd, size=self.E_hat.size()).to(self.device))
 
-    def gen_synth_data(self, batch_size):
-        self.Z = tu.random_generator(batch_size, self.params['input_dim'], self.ori_time, self.max_seq_len)
+    def gen_synth_data(self):
+        self.Z = tu.random_generator(self.opt.synth_size, self.params['input_dim'], self.ori_time, self.max_seq_len)
         self.Z = torch.tensor(self.Z, dtype=torch.float32).to(self.device)
 
         self.E_hat = self.generator(self.Z)
@@ -268,8 +268,9 @@ class DP_Timegan:
         supervised_fake_data = self.supervisor(raw_fake_data)
         self.X_hat = self.recovery(supervised_fake_data)        #recovering for statistics loss
 
-        real_labels = torch.ones(H_batch_size, self.max_seq_len).to(self.device)
-        fake_labels = torch.zeros(H_batch_size, self.max_seq_len).to(self.device)
+        #Discriminating EACH time step in the sequence
+        real_labels = torch.ones(H_batch_size, self.opt.hidden_dim).to(self.device)
+        fake_labels = torch.zeros(H_batch_size, self.opt.hidden_dim).to(self.device)
 
         #Real, Fake, and Raw Fake Data into Discriminator, compute losses
         # real_output = self.discriminator(self.H)
@@ -284,9 +285,9 @@ class DP_Timegan:
         fake_output = self.discriminator(supervised_fake_data.detach())
         raw_fake_output = self.discriminator(raw_fake_data.detach())
 
-        d_real_loss = self.BCELoss(real_output, real_labels)
-        d_fake_loss = self.BCELoss(fake_output, fake_labels)
-        d_raw_fake_loss = self.BCELoss(raw_fake_output, fake_labels)
+        d_real_loss = self.BCELoss(real_output, torch.ones_like(real_output))
+        d_fake_loss = self.BCELoss(fake_output, torch.zeros_like(fake_output))
+        d_raw_fake_loss = self.BCELoss(raw_fake_output, torch.zeros_like(raw_fake_output))
 
         #Total DP_Discriminator Loss, backpropagate, step, zero gradients for opacus
         self.D_loss = d_real_loss + d_fake_loss + self.opt.gamma * d_raw_fake_loss
@@ -303,11 +304,11 @@ class DP_Timegan:
 
         #Generator Supervised Loss
         fake_output = self.discriminator(supervised_fake_data)
-        self.G_loss_U = self.BCELoss(fake_output, real_labels)
+        self.G_loss_U = self.BCELoss(fake_output, torch.ones_like(fake_output))
 
         #Generator Unsupservised Loss
         raw_fake_output = self.discriminator(raw_fake_data)
-        self.G_loss_U_e = self.BCELoss(raw_fake_output, real_labels)
+        self.G_loss_U_e = self.BCELoss(raw_fake_output, torch.ones_like(raw_fake_output))
 
         #Generated Data Descriptive Temporal Statistics Loss
         mean_X = torch.mean(X_batch, dim=0)
