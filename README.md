@@ -1,4 +1,4 @@
-## Deep Longitudinal EHR Synthesis    
+## Deep Longitudinal EHR Synthesis - MMSC Master's Dissertation    
 **Full Dissertation Title:** Privacy-Preserving Generative Modelling of Longitudinal Electronic Health Records    
 **Academic Supervisors:** Dr. Georg Maierhofer & Prof. Sarah Waters   
 **Industry Supervisors:** Ammar Naseer & Dr. Sumanth Swaminathan  
