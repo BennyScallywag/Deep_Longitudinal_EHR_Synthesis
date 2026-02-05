@@ -1,2 +1,4 @@
 #Ignore everything in the pycache folder
 __pycache__/*
+
+.gitignore
